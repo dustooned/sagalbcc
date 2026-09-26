@@ -56,6 +56,7 @@ export function RoomLobby({ onSessionExpired }: { onSessionExpired: () => void }
       <div className="panel lobby">
         <h1 className="logo">SAGA</h1>
         <p className="muted small">Bring a kit you exported from Kit Forge ("Send to Table") and load it once you're seated.</p>
+        <a className="btn ghost small" href="https://dustooned.github.io/kitb/" target="_blank" rel="noreferrer">🛠️ Open Kit Forge</a>
         {nameField}
         <button className="btn primary big" disabled={busy} onClick={() => go('create')}>CREATE TABLE</button>
         <div className="divider"><span>or gather your party</span></div>

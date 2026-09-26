@@ -18,6 +18,7 @@ export function Toolbar() {
         <div className="tools-body">
           <div className="row wrap">
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickKitFile}>{t.kitProgress ?? '📦 Load kit…'}</button>
+            <a className="btn small ghost" href="https://dustooned.github.io/kitb/" target="_blank" rel="noreferrer">🛠️ Kit Forge</a>
           </div>
           <div className="field"><span>MARKERS &amp; NOTES</span></div>
           <div className="row wrap">
