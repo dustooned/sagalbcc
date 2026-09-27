@@ -5,7 +5,7 @@
 // faceUp only switches which image (front or back) is shown.
 import { randomInt } from 'node:crypto';
 import {
-  BACKDROP_EFFECTS, BACKDROP_MODES, DIE_KINDS, DIE_SIDES, MAX_PLAYERS, clampToTable,
+  ATMOSPHERE_KINDS, BACKDROP_EFFECTS, BACKDROP_MODES, DIE_KINDS, DIE_SIDES, MAX_PLAYERS, clampToTable,
   type MarkerKind, type NormalizedKit, type PieceDefinition, type PieceFace, type PieceKind,
 } from '@kitforge/shared-types';
 import { MarkerState, NoteState, PieceState, PlayerState, TableState } from './TableState.ts';
@@ -504,9 +504,22 @@ export function editNote(ctx: TableContext, playerId: string, id: unknown, text:
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** Anyone can restyle the table: it's cosmetic, shared and logged. Image existence is the room's job. */
-export function setTableLook(ctx: TableContext, actorId: string, raw: { felt?: unknown; image?: unknown; backdrop?: unknown }): OpResult {
+export function setTableLook(ctx: TableContext, actorId: string, raw: { felt?: unknown; image?: unknown; backdrop?: unknown; atmosphere?: unknown }): OpResult {
   const s = ctx.state, who = nameOf(ctx, actorId);
   let line = '';
+  if (raw.atmosphere && typeof raw.atmosphere === 'object') {
+    const a = raw.atmosphere as { kind?: unknown; strength?: unknown };
+    const kind = ATMOSPHERE_KINDS.find(k => k === a.kind);
+    if (!kind || typeof a.strength !== 'number' || !Number.isFinite(a.strength)) return fail();
+    const json = JSON.stringify({ kind, strength: Math.round(Math.min(1, Math.max(0.1, a.strength)) * 100) / 100 });
+    if (json !== s.lookAtmosphere) {
+      const was = s.lookAtmosphere ? (JSON.parse(s.lookAtmosphere) as { kind: string }).kind : 'none';
+      s.lookAtmosphere = json;
+      // Dragging the strength slider shouldn't flood the log — only a change of weather is logged.
+      if (was !== kind) line = kind === 'none' ? `${who} cleared the weather.` : `${who} set the weather to ${kind}.`;
+      else return ok();
+    }
+  }
   if (raw.backdrop && typeof raw.backdrop === 'object') {
     const b = raw.backdrop as { mode?: unknown; colors?: unknown; image?: unknown; effect?: unknown };
     const mode = BACKDROP_MODES.find(m => m === b.mode);

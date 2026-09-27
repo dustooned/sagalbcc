@@ -60,6 +60,21 @@ export const BACKDROP_PRESETS: { group: 'Space' | 'Nebula' | 'Gradient'; name: s
   { group: 'Gradient', name: 'Dusk', look: { mode: 'gradient', colors: ['#141e30', '#243b55', '#6a7fa0'] } },
 ];
 
+// ---------------------------------------------------------------- atmosphere (weather over the table)
+
+export const ATMOSPHERE_KINDS = ['none', 'fog', 'dust', 'rain', 'snow', 'embers'] as const;
+export type AtmosphereKind = typeof ATMOSPHERE_KINDS[number];
+export interface Atmosphere { kind: AtmosphereKind; /** 0.1–1 */ strength: number }
+export const DEFAULT_ATMOSPHERE: Atmosphere = { kind: 'none', strength: 0.6 };
+export function parseAtmosphere(json: string): Atmosphere {
+  try {
+    const a = JSON.parse(json) as Partial<Atmosphere>;
+    const kind = ATMOSPHERE_KINDS.includes(a.kind as AtmosphereKind) ? a.kind as AtmosphereKind : 'none';
+    const strength = typeof a.strength === 'number' && Number.isFinite(a.strength) ? Math.min(1, Math.max(0.1, a.strength)) : DEFAULT_ATMOSPHERE.strength;
+    return { kind, strength };
+  } catch { return DEFAULT_ATMOSPHERE; }
+}
+
 /** Parses the synced backdrop JSON, falling back to the default for anything missing or odd. */
 export function parseBackdrop(json: string): Backdrop {
   try {

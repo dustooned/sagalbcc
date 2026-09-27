@@ -71,5 +71,6 @@ export interface SyncedTable {
   lookFelt: string;
   lookImage: string;
   lookBackdrop: string;
+  lookAtmosphere: string;
   counterNames: { length: number; [Symbol.iterator](): Iterator<string> };
 }

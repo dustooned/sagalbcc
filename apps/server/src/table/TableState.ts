@@ -78,6 +78,8 @@ export const TableState = schema({
   lookImage: t.string().default(''),
   /** JSON Backdrop — what's behind the table (space, nebula, gradient, image…). '' = default. */
   lookBackdrop: t.string().default(''),
+  /** JSON Atmosphere — fog, dust, rain, snow or embers over the table. '' = none. */
+  lookAtmosphere: t.string().default(''),
   /** Counter columns every player gets (SCORE, HP, GOLD…). Anyone can add or remove one. */
   counterNames: t.array('string'),
 }, 'TableState');
