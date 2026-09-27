@@ -15,5 +15,9 @@ export const actions = {
   spawnMarker: (kind: MarkerKind, label?: string) => store.send('spawnMarker', { kind, label }),
   adjustMarker: (id: string, delta: number) => store.send('adjustMarker', { id, delta }),
   rollMarker: (id: string) => store.send('rollMarker', { id }),
+  counter: (playerId: string, key: string, delta: number) => store.send('counter', { playerId, key, delta }),
+  setCounter: (playerId: string, key: string, value: number) => store.send('counter', { playerId, key, value }),
+  addCounter: (name: string) => store.send('addCounter', { name }),
+  removeCounter: (name: string) => store.send('removeCounter', { name }),
   addNote: (text: string) => store.send('addNote', { text }),
 };

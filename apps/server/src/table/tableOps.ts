@@ -23,10 +23,12 @@ const ok = (): OpResult => ({ ok: true });
 const fail = (notice?: string): OpResult => ({ ok: false, notice });
 
 export function createTableContext(opts: Partial<Pick<TableContext, 'randomInt'>> = {}): TableContext {
-  return { state: new TableState(), nextOrder: 1, nextId: 1, randomInt: opts.randomInt ?? (n => randomInt(n)) };
+  return { state: withDefaults(new TableState()), nextOrder: 1, nextId: 1, randomInt: opts.randomInt ?? (n => randomInt(n)) };
 }
 
 // ---------------------------------------------------------------- helpers
+
+function withDefaults(state: TableState) { state.counterNames.push('SCORE'); return state; }
 
 export function appendLog(ctx: TableContext, text: string) {
   ctx.state.log.push(text);
@@ -131,6 +133,7 @@ export function addPlayer(ctx: TableContext, opts: { name: unknown; reclaimPlaye
   player.name = name;
   player.seat = seat;
   player.connected = true;
+  for (const k of ctx.state.counterNames) player.counters.set(k, 0);
   ctx.state.players.set(player.id, player);
   if (!ctx.state.hostId) ctx.state.hostId = player.id;
   appendLog(ctx, `${name} joined the table.`);
@@ -512,6 +515,45 @@ export function clearTable(ctx: TableContext, actorId: string): OpResult {
   ctx.state.pieces.clear();
   ctx.state.markers.clear();
   ctx.state.notes.clear();
+  ctx.state.players.forEach(p => p.counters.forEach((_v, k) => p.counters.set(k, 0)));
   appendLog(ctx, `${nameOf(ctx, actorId)} cleared the table.`);
+  return ok();
+}
+
+// ---------------------------------------------------------------- point counters
+const COUNTER_NAME_MAX = 10, MAX_COUNTERS = 4, COUNTER_LIMIT = 9999;
+const cleanCounterName = (v: unknown) => (typeof v === 'string' ? v.replace(/[^\p{L}\p{N} _-]/gu, '').trim().toUpperCase().slice(0, COUNTER_NAME_MAX) : '');
+
+/** Change one player's counter by delta, or set it to value. Anyone can change anyone's — like TTS. */
+export function setCounter(ctx: TableContext, actorId: string, msg: { playerId?: unknown; key?: unknown; delta?: unknown; value?: unknown }): OpResult {
+  const p = typeof msg.playerId === 'string' ? ctx.state.players.get(msg.playerId) : undefined;
+  const key = typeof msg.key === 'string' ? msg.key : '';
+  if (!p || !ctx.state.counterNames.includes(key)) return fail();
+  const before = p.counters.get(key) ?? 0;
+  const raw = typeof msg.value === 'number' ? msg.value : before + (typeof msg.delta === 'number' ? msg.delta : 0);
+  if (!Number.isFinite(raw)) return fail();
+  const after = Math.max(-COUNTER_LIMIT, Math.min(COUNTER_LIMIT, Math.round(raw)));
+  p.counters.set(key, after);
+  if (typeof msg.value === 'number') appendLog(ctx, `${nameOf(ctx, actorId)} set ${p.name}'s ${key} to ${after}.`);
+  return ok();
+}
+
+export function addCounter(ctx: TableContext, actorId: string, name: unknown): OpResult {
+  const key = cleanCounterName(name);
+  if (!key) return fail('Counter names use letters and numbers.');
+  if (ctx.state.counterNames.includes(key)) return fail(`There's already a ${key} counter.`);
+  if (ctx.state.counterNames.length >= MAX_COUNTERS) return fail(`Up to ${MAX_COUNTERS} counters.`);
+  ctx.state.counterNames.push(key);
+  ctx.state.players.forEach(p => p.counters.set(key, 0));
+  appendLog(ctx, `${nameOf(ctx, actorId)} added a ${key} counter.`);
+  return ok();
+}
+
+export function removeCounter(ctx: TableContext, actorId: string, name: unknown): OpResult {
+  const i = typeof name === 'string' ? ctx.state.counterNames.indexOf(name) : -1;
+  if (i < 0) return fail();
+  ctx.state.counterNames.splice(i, 1);
+  ctx.state.players.forEach(p => p.counters.delete(name as string));
+  appendLog(ctx, `${nameOf(ctx, actorId)} removed the ${name} counter.`);
   return ok();
 }

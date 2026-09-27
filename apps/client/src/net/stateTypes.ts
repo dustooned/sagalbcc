@@ -32,6 +32,7 @@ export interface SyncedPlayer {
   name: string;
   seat: number;
   connected: boolean;
+  counters: SyncedMap<number>;
 }
 
 export interface SyncedMarker {
@@ -69,4 +70,5 @@ export interface SyncedTable {
   notes: SyncedMap<SyncedNote>;
   lookFelt: string;
   lookImage: string;
+  counterNames: { length: number; [Symbol.iterator](): Iterator<string> };
 }

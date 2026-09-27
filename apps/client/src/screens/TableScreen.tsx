@@ -89,10 +89,9 @@ export function TableScreen() {
         <>
           <div className="hud tl"><RoomPanel /></div>
           <div className="hud tc"><Notices /></div>
-          <div className="hud tr"><TableLookPanel /></div>
           <div className="hud cc"><EmptyTable /></div>
           <div className="hud bl"><CameraPanel /></div>
-          <div className="hud br"><Toolbar /></div>
+          <div className="hud br"><TableLookPanel /><Toolbar /></div>
         </>
       )}
       {/* Right-click menus work even with panels hidden — they're not part of the HUD to hide. */}

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { pickImageFile } from '../pieces/loadImage.ts';
 import { pickKitFile } from '../pieces/loadKit.ts';
+import { pickModelFile } from '../pieces/loadModel.ts';
 import { useTable } from '../net/tableStore.ts';
 
 export function EmptyTable() {
@@ -17,6 +18,7 @@ export function EmptyTable() {
       <div className="row wrap" style={{ justifyContent: 'center' }}>
         <button className="btn primary" disabled={!!t.kitProgress} onClick={pickKitFile}>{t.kitProgress ?? '📦 Load kit…'}</button>
         <button className="btn" disabled={!!t.kitProgress} onClick={pickImageFile}>🖼️ Add image…</button>
+        <button className="btn" disabled={!!t.kitProgress} onClick={pickModelFile}>🧊 Add 3D model…</button>
       </div>
     </section>
   );

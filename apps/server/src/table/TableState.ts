@@ -29,6 +29,8 @@ export const PlayerState = schema({
   name: t.string().default(''),
   seat: t.int8().default(0),
   connected: t.boolean().default(true),
+  /** Point counters (TTS-style), keyed by the table's counterNames. */
+  counters: t.map('number'),
 }, 'Player');
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -74,5 +76,7 @@ export const TableState = schema({
   /** Shared table look: felt color, plus an optional uploaded image laid over it. */
   lookFelt: t.string().default('#184554'),
   lookImage: t.string().default(''),
+  /** Counter columns every player gets (SCORE, HP, GOLD…). Anyone can add or remove one. */
+  counterNames: t.array('string'),
 }, 'TableState');
 export type TableState = SchemaType<typeof TableState>;

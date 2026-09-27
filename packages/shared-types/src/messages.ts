@@ -22,6 +22,10 @@ export interface ClientMessages {
   renameMarker: { id: string; label: string };
   /** Re-rolls a 'die' marker to a fresh random 1-6. No-op on any other marker kind. */
   rollMarker: { id: string };
+  /** A player's point counter: add delta, or set an exact value. */
+  counter: { playerId: string; key: string; delta?: number; value?: number };
+  addCounter: { name: string };
+  removeCounter: { name: string };
   addNote: { text: string; x?: number; z?: number };
   editNote: { id: string; text: string };
   resetTable: Record<string, never>;
