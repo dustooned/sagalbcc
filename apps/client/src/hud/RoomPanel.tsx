@@ -31,7 +31,15 @@ export function RoomPanel() {
         <button className="btn small" onClick={copy} title="Copy a link that opens this table">🔗 Invite</button>
         <button className="btn small ghost" onClick={() => void leaveTable()} title="Leave the table">Leave</button>
       </div>
-      <p className="party-label">PARTY · {players.length} player{players.length === 1 ? '' : 's'}</p>
+      <div className="party-row">
+        <p className="party-label">PARTY · {players.length} player{players.length === 1 ? '' : 's'}</p>
+        <span className="muted small">COUNTERS</span>
+        <span className="counter-count">
+                <button className="counter-name add" title="Remove the last counter" disabled={counters.length === 0}
+                  onClick={() => { const last = counters[counters.length - 1]; if (last && confirm(`Remove ${last} for everyone?`)) actions.removeCounter(last); }}>−</button>
+                <button className="counter-name add" title="Add a point counter" disabled={counters.length >= 3} onClick={() => edit('+')}>＋</button>
+              </span>
+      </div>
       <table className="players">
         <thead>
           <tr>
@@ -39,7 +47,6 @@ export function RoomPanel() {
             {counters.map(k => (
               <th key={k}><button className="counter-name" title={`Rename or remove ${k}`} onClick={() => edit(k)}>{k} ✎</button></th>
             ))}
-            <th>{counters.length < 3 && <button className="counter-name add" title="Add a point counter" onClick={() => edit('+')}>＋ ADD</button>}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +74,6 @@ export function RoomPanel() {
                   </td>
                 );
               })}
-              <td />
             </tr>
           ))}
         </tbody>

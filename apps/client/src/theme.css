@@ -117,7 +117,12 @@ a.btn { color: inherit; text-decoration: none; display: inline-block; }
 .players .who b { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 .players tr.away { opacity: 0.55; }
 .counter-name { background: none; border: 0; padding: 0 2px; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; color: var(--muted); }
-.counter-name.add { color: var(--accent); }
+.counter-name.add { color: var(--accent); font-size: 15px; width: 24px; height: 24px; border: 1px solid var(--panel-border); border-radius: 6px; }
+.counter-name.add:disabled { opacity: 0.3; }
+.counter-count { display: inline-flex; gap: 4px; }
+.party-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; }
+.party-row .party-label { margin: 0; flex: 1; }
+.party-row .muted.small { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; }
 .counter-name:hover { color: var(--text); }
 .counter-edit { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 .counter-edit input { width: 110px; padding: 6px 8px; text-transform: uppercase; }
