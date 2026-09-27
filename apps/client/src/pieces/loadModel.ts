@@ -3,6 +3,9 @@
 // failed upload — the server then re-checks it independently before storing it.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { MODEL_LIMITS, UNSUPPORTED_GLTF_EXTENSIONS, modelProblems, type ModelProblem, type NormalizedKit, type PieceDefinition } from '@kitforge/shared-types';
 import { uploadModel } from '../net/api.ts';
 import { store } from '../net/tableStore.ts';
@@ -59,11 +62,37 @@ async function inspect(file: File): Promise<{ problem: ModelProblem } | { footpr
   return { footprint: { w: Math.max(0.3, (size.x / big) * TARGET_SIDE_INCHES), h: Math.max(0.3, (size.z / big) * TARGET_SIDE_INCHES) } };
 }
 
+/** OBJ and STL arrive as shape only (one plain color) and are turned into a .glb here, so the
+ *  server and every other player only ever deal with one format. */
+const SHAPE_ONLY = /\.(obj|stl)$/i;
+const plainMaterial = () => new THREE.MeshStandardMaterial({ color: '#d9d4c7', roughness: 0.6 });
+
+async function toGlb(file: File): Promise<File> {
+  let root: THREE.Object3D;
+  if (/\.stl$/i.test(file.name)) {
+    const geo = new STLLoader().parse(await file.arrayBuffer());
+    geo.computeVertexNormals();
+    root = new THREE.Mesh(geo, plainMaterial());
+    root.rotation.x = -Math.PI / 2; // STL files are Z-up (3D printing); the table is Y-up
+  } else {
+    root = new OBJLoader().parse(await file.text());
+    root.traverse(o => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = plainMaterial(); });
+  }
+  const scene = new THREE.Scene();
+  scene.add(root);
+  scene.updateMatrixWorld(true);
+  const glb = await new GLTFExporter().parseAsync(scene, { binary: true }) as ArrayBuffer;
+  return new File([glb], file.name.replace(/\.[^.]+$/, '.glb'), { type: 'model/gltf-binary' });
+}
+
 export async function addModelFile(file: File) {
   if (store.kitProgress) return;
   store.kitProgress = 'Checking model…';
   store.bump();
   try {
+    if (SHAPE_ONLY.test(file.name)) {
+      try { file = await toGlb(file); } catch { store.showHelp(modelProblems.unreadable()); return; }
+    }
     const result = await inspect(file);
     if ('problem' in result) { store.showHelp(result.problem); return; }
     store.kitProgress = 'Uploading model…';

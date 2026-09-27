@@ -35,13 +35,14 @@ export const BLENDER_EXPORT_HELP: ModelProblem = {
     '• Animation: OFF',
     'Limits: 15 MB · 100,000 triangles · textures up to 4096 px (2048 is better).',
     'Size and position don’t matter: the table scales it to about 3 inches.',
+    'Quick option: .obj or .stl also work, but show as one plain color (no textures).',
   ].join('\n'),
 };
 
 export const modelProblems = {
   wrongFormat: (name: string): ModelProblem => ({
-    error: `"${name}" isn't a .glb file.`,
-    fix: `The table loads 3D models as glTF Binary (.glb) — one file with the textures packed inside. ${EXPORT_STEPS}`,
+    error: `"${name}" isn't a 3D format the table can load.`,
+    fix: `Use .glb (keeps colors and textures) — or .obj / .stl for a quick plain-colored shape. ${EXPORT_STEPS}`,
   }),
   tooBig: (mb: number): ModelProblem => ({
     error: `This model is ${mb.toFixed(1)} MB — the limit is ${MODEL_LIMITS.maxMB} MB.`,

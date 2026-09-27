@@ -41,7 +41,7 @@ a{color:var(--accent)}
 <table>
 <tr><td><b>📦 Load kit…</b></td><td>A <code>.kittable.json</code> from Kit Forge's <b>Send to Table</b> or Export ZIP.</td></tr>
 <tr><td><b>🖼️ Add image…</b></td><td>Any PNG/JPG/WebP becomes a piece. Fastest way to test one idea.</td></tr>
-<tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code> from Blender. See <a href="#formats">File formats</a><a href="#models">3D models</a>.</td></tr>
+<tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code>, <code>.obj</code> or <code>.stl</code>. See <a href="#formats">File formats</a><a href="#models">3D models</a>.</td></tr>
 <tr><td><b>Markers &amp; notes</b></td><td>+1, −1, DMG, STATUS, custom labels, notes, and dice.</td></tr>
 <tr><td><b>Drag &amp; drop</b></td><td>Drop any of the files above anywhere on the page.</td></tr>
 </table>
@@ -88,11 +88,12 @@ a{color:var(--accent)}
 <tr><th>What</th><th>Use</th><th>Not accepted</th></tr>
 <tr><td>Kits</td><td><code>.kittable.json</code> (Kit Forge → Send to Table, or inside its Export ZIP)</td><td>The <code>.zip</code> itself — unzip it first</td></tr>
 <tr><td>Images</td><td>PNG, JPG, WebP (up to 8 MB)</td><td>PSD, PDF, SVG — make those in Kit Forge instead</td></tr>
-<tr><td>3D models</td><td><code>.glb</code> (glTF Binary)</td><td>.blend, .gltf, .fbx, .obj, .stl, .dae, .usdz — export them as .glb</td></tr>
+<tr><td>3D models</td><td><code>.glb</code> — keeps colors &amp; textures<br><code>.obj</code> / <code>.stl</code> — quick, shape only (one plain color)</td><td>.blend, .gltf, .fbx, .dae, .usdz — export them as .glb</td></tr>
 </table>
 </section>
 
 <section id="models"><h2>3D models from Blender</h2>
+<p><b>Easiest:</b> any <code>.obj</code> or <code>.stl</code> works as-is — it just shows in one plain color. For colors and textures, export <code>.glb</code> with the settings below.</p>
 <p>In SAGA, the <b>ⓘ</b> next to <b>🧊 Add 3D model…</b> shows these settings too.</p>
 <h3>Before exporting</h3>
 <ol>

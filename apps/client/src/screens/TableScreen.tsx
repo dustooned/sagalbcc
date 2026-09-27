@@ -62,7 +62,7 @@ function useKitDrop() {
       else if (file.type.startsWith('image/')) void addImageFile(file);
       // .glb loads; other 3D formats go the same way so they get the Blender export steps.
       else if (/\.(glb|gltf|blend|fbx|obj|stl|dae|3ds|usdz?)$/i.test(file.name)) void addModelFile(file);
-      else store.notify('Drop a .kittable.json from Kit Forge, a PNG/JPG/WebP image, or a .glb 3D model.');
+      else store.notify('Drop a .kittable.json from Kit Forge, a PNG/JPG/WebP image, or a .glb/.obj/.stl 3D model.');
     };
     window.addEventListener('dragover', onOver);
     window.addEventListener('dragleave', onLeave);
