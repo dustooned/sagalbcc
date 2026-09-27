@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAGA Manual</title>
+<style>
+:root{--bg:#f6f8fb;--card:#fff;--ink:#14213d;--mute:#56607a;--accent:#0b4ea2;--gold:#f2b705;--line:#dde3ee}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1524;--card:#16203a;--ink:#e8edf7;--mute:#9aa6c2;--accent:#6ea8ff;--gold:#f2b705;--line:#26324f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,Segoe UI,Roboto,sans-serif}
+header{background:var(--accent);color:#fff;padding:28px 16px;border-bottom:5px solid var(--gold)}
+header h1{margin:0 0 4px;font-size:1.8rem}header p{margin:0;opacity:.9}
+main{max-width:860px;margin:0 auto;padding:16px}
+nav{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 20px}
+nav a{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px 12px;color:var(--accent);text-decoration:none;font-size:.9rem}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-bottom:16px}
+h2{margin:0 0 8px;font-size:1.25rem}h3{margin:14px 0 4px;font-size:1.05rem}
+table{width:100%;border-collapse:collapse;font-size:.95rem}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:.85em;background:var(--bg)}
+.tip{border-left:4px solid var(--gold);padding:6px 12px;background:var(--bg);border-radius:0 8px 8px 0;margin:10px 0}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header><h1>🎲 SAGA Manual</h1><p>A live 3D playtest table for your group. Runs in the browser on PCs, tablets and phones.</p></header>
+<main>
+<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#dice">Dice &amp; markers</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
+
+<section id="start"><h2>Quick start</h2>
+<ol>
+<li>Open <a href="/">SAGA</a>, type your name and the class password (ask your instructor).</li>
+<li><b>Host</b> creates a room. Everyone else joins with the <b>room code</b> or the invite link.</li>
+<li>Load your kit from <a href="https://dustooned.github.io/kitb/">Kit Forge</a>: drag the <code>.kittable.json</code> onto the table.</li>
+<li>Play. Everyone sees every move live.</li>
+</ol>
+<div class="tip">Tap <b>✕</b> (top right) to hide all panels for a clear view; <b>☰</b> brings them back. The <b>🧰 Table tools</b> panel folds shut from its header.</div>
+</section>
+
+<section id="add"><h2>Adding things to the table</h2>
+<table>
+<tr><td><b>📦 Load kit…</b></td><td>A <code>.kittable.json</code> from Kit Forge's <b>Send to Table</b> or Export ZIP.</td></tr>
+<tr><td><b>🖼️ Add image…</b></td><td>Any PNG/JPG/WebP becomes a piece. Fastest way to test one idea.</td></tr>
+<tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code> from Blender. See <a href="#models">3D models</a>.</td></tr>
+<tr><td><b>Markers &amp; notes</b></td><td>+1, −1, DMG, STATUS, custom labels, notes, and dice.</td></tr>
+<tr><td><b>Drag &amp; drop</b></td><td>Drop any of the files above anywhere on the page.</td></tr>
+</table>
+<p><b>Clear table</b> is host-only.</p>
+</section>
+
+<section id="mouse"><h2>Mouse &amp; keyboard</h2>
+<table>
+<tr><td>Left-drag a piece</td><td>Move it. <kbd>Shift</kbd>+click adds to a selection.</td></tr>
+<tr><td>Right-click a piece</td><td>Piece menu (flip, rotate, tap, delete…).</td></tr>
+<tr><td>Right-click the table</td><td>Table menu and shortcut list.</td></tr>
+<tr><td>Drag the table / wheel</td><td>Orbit / zoom the camera. Hold <kbd>Space</kbd> to pan over pieces.</td></tr>
+<tr><td><kbd>F</kbd></td><td>Flip</td></tr>
+<tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Rotate left / right</td></tr>
+<tr><td><kbd>T</kbd></td><td>Tap (turn sideways)</td></tr>
+<tr><td><kbd>Delete</kbd></td><td>Delete selected</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Deselect</td></tr>
+</table>
+</section>
+
+<section id="touch"><h2>Touch (tablets &amp; phones)</h2>
+<table>
+<tr><td>One finger on a piece</td><td>Move it. The camera locks while you hold it — for you only.</td></tr>
+<tr><td>Double-tap a piece</td><td>Flip it.</td></tr>
+<tr><td>Hold a piece + twist a second finger</td><td>Rotate it (each twist step = one turn).</td></tr>
+<tr><td>Long-press (most Android devices)</td><td>Piece menu.</td></tr>
+<tr><td>One finger on the table</td><td>Orbit. Two fingers: pan and pinch-zoom.</td></tr>
+</table>
+</section>
+
+<section id="dice"><h2>Dice &amp; tokens</h2>
+<p>Dice: <b>D6</b> (numbers or dots), <b>D4, D8, D10, D12, D20</b>. Everyone sees the same result.</p>
+<table>
+<tr><td><b>Click / tap</b></td><td>Roll in place.</td></tr>
+<tr><td><b>Shake</b></td><td>Hold it and wiggle back and forth, then let go — it rolls.</td></tr>
+<tr><td><b>Flick / throw</b></td><td>Drag fast and release. It slides, tumbles and bounces off the rim.</td></tr>
+</table>
+<p>DMG, STATUS and custom tokens can be thrown too — they flip like a coin.</p>
+</section>
+
+<section id="models"><h2>3D models from Blender</h2>
+<ol>
+<li>In Blender: <b>File → Export → glTF 2.0</b>.</li>
+<li>Set <b>Format</b> to <b>glTF Binary (.glb)</b> — one file with textures inside.</li>
+<li>Drop the <code>.glb</code> onto the table.</li>
+</ol>
+<table>
+<tr><th>Limit</th><th>If you're over</th></tr>
+<tr><td>15 MB file</td><td>Shrink textures, apply a Decimate modifier.</td></tr>
+<tr><td>100,000 triangles</td><td>Decimate modifier (ratio 0.3–0.5).</td></tr>
+<tr><td>4096 px textures</td><td>Resize images to 2048 or less.</td></tr>
+</table>
+<p>If a model fails, SAGA shows the exact problem and the Blender steps to fix it.</p>
+</section>
+
+<section id="help"><h2>Troubleshooting</h2>
+<table>
+<tr><td>Stuck on loading / "handshake"</td><td>Reload the page. Check you're online.</td></tr>
+<tr><td>"Someone is moving that"</td><td>Another player is holding it. Wait a second.</td></tr>
+<tr><td>Table disappeared</td><td>The room closes after 30 minutes with nobody in it, or when the server updates. Reload your kit.</td></tr>
+<tr><td>Can't see the table on a phone</td><td>Tap <b>✕</b> to hide panels.</td></tr>
+</table>
+</section>
+</main>
+</body>
+</html>
