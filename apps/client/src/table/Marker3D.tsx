@@ -156,8 +156,10 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     const m = store.state?.markers.get(p.id), pos = markerPos(p.id);
     if (!m || !pos) return;
     if (m.lockedBy && m.lockedBy !== store.playerId) { store.notify(`${store.state?.players.get(m.lockedBy)?.name ?? 'Someone'} is moving that marker.`); return; }
-    // A die: a plain tap rolls it (no drag needed) — dragging still moves it like any token.
-    beginDrag(e, [{ id: p.id, ...pos }], isDie ? () => actions.rollMarker(p.id) : undefined);
+    // A die: a plain tap rolls it, shaking it while held rattles it, and a fast flick on
+    // release tosses and rolls it — same gesture for mouse and touch.
+    const roll = isDie ? () => actions.rollMarker(p.id) : undefined;
+    beginDrag(e, [{ id: p.id, ...pos }], roll, roll);
   };
 
   const yaw = THREE.MathUtils.degToRad(seatAngle(store.me()?.seat ?? 0) + 90);
