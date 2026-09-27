@@ -8,7 +8,7 @@ import { PIECE_THICKNESS, type PieceKind } from '@kitforge/shared-types';
 import { store } from '../net/tableStore.ts';
 import { beginDrag, localDrag } from './dragging.ts';
 import { ui } from './selection.ts';
-import { backMaterial, boardEdgeMaterial, edgeMaterial, frontMaterial } from './textures.ts';
+import { backMaterial, boardEdgeMaterial, edgeMaterial, frontMaterial, highlightMaterial } from './textures.ts';
 
 const DEG = Math.PI / 180;
 const geometries = new Map<string, THREE.BoxGeometry>();
@@ -22,7 +22,7 @@ function geometryFor(w: number, h: number, thickness: number) {
 function outlineFor(w: number, h: number) {
   const key = `${w}x${h}`;
   let g = outlineGeometries.get(key);
-  if (!g) { g = new THREE.PlaneGeometry(w + 0.1, h + 0.1); outlineGeometries.set(key, g); }
+  if (!g) { g = new THREE.PlaneGeometry(w + 0.7, h + 0.7); outlineGeometries.set(key, g); }
   return g;
 }
 
@@ -125,9 +125,7 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
         />
       </group>
       {outlineColor && (
-        <mesh geometry={outlineFor(p.w, p.h)} rotation-x={-Math.PI / 2} position-y={-thickness / 2 - 0.002}>
-          <meshBasicMaterial color={outlineColor} transparent opacity={0.9} depthWrite={false} />
-        </mesh>
+        <mesh geometry={outlineFor(p.w, p.h)} material={highlightMaterial(outlineColor)} rotation-x={-Math.PI / 2} position-y={-thickness / 2 - 0.002} />
       )}
     </group>
   );

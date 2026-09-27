@@ -54,6 +54,35 @@ function generatedFront() {
   return fallbackFront;
 }
 
+const highlightTextures = new Map<string, THREE.CanvasTexture>();
+/** A soft glowing ring (not a flat filled block) for a selected/locked piece's outline. */
+function highlightTexture(color: string) {
+  let tex = highlightTextures.get(color);
+  if (tex) return tex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(64, 64, 40, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(0.7, 'rgba(0,0,0,0)');
+  grad.addColorStop(0.86, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  tex = new THREE.CanvasTexture(c);
+  highlightTextures.set(color, tex);
+  return tex;
+}
+const highlightMaterials = new Map<string, THREE.MeshBasicMaterial>();
+export function highlightMaterial(color: string) {
+  let m = highlightMaterials.get(color);
+  if (!m) {
+    m = new THREE.MeshBasicMaterial({ map: highlightTexture(color), transparent: true, depthWrite: false });
+    highlightMaterials.set(color, m);
+  }
+  return m;
+}
+
 export function backMaterial(backImage: string) {
   return backImage ? material(`back:${backImage}`, () => imageTexture(assetUrl(backImage))) : material('back:generated', generatedBack);
 }
