@@ -76,6 +76,8 @@ export const TableState = schema({
   /** Shared table look: felt color, plus an optional uploaded image laid over it. */
   lookFelt: t.string().default('#184554'),
   lookImage: t.string().default(''),
+  /** JSON Backdrop — what's behind the table (space, nebula, gradient, image…). '' = default. */
+  lookBackdrop: t.string().default(''),
   /** Counter columns every player gets (SCORE, HP, GOLD…). Anyone can add or remove one. */
   counterNames: t.array('string'),
 }, 'TableState');

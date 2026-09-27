@@ -29,6 +29,50 @@ export const FELT_PRESETS = [
 ] as const;
 export const DEFAULT_FELT = FELT_PRESETS[0].color;
 
+// ---------------------------------------------------------------- backdrop (behind the table)
+
+export const BACKDROP_MODES = ['solid', 'gradient', 'space', 'nebula', 'image'] as const;
+export type BackdropMode = typeof BACKDROP_MODES[number];
+export const BACKDROP_EFFECTS = ['none', 'wave', 'kaleido'] as const;
+export type BackdropEffect = typeof BACKDROP_EFFECTS[number];
+
+/** Everything behind the table. Shared by the whole table, like the felt. */
+export interface Backdrop {
+  mode: BackdropMode;
+  /** Up to three colors: gradient top→bottom, or a nebula's deep/mid/bright tones. */
+  colors: string[];
+  image: string;
+  effect: BackdropEffect;
+}
+export const DEFAULT_BACKDROP: Backdrop = { mode: 'solid', colors: ['#0e0e16'], image: '', effect: 'none' };
+
+export const BACKDROP_PRESETS: { group: 'Space' | 'Nebula' | 'Gradient'; name: string; look: Omit<Backdrop, 'image' | 'effect'> }[] = [
+  { group: 'Space', name: 'Deep space', look: { mode: 'space', colors: ['#02030a', '#0b1030', '#3a4a9a'] } },
+  { group: 'Space', name: 'Star field', look: { mode: 'space', colors: ['#000000', '#05070f', '#20263a'] } },
+  { group: 'Space', name: 'Red giant', look: { mode: 'space', colors: ['#050102', '#2a0606', '#da291c'] } },
+  { group: 'Nebula', name: 'Viking nebula', look: { mode: 'nebula', colors: ['#020608', '#184554', '#5fd3c8'] } },
+  { group: 'Nebula', name: 'Crimson nebula', look: { mode: 'nebula', colors: ['#050103', '#6e0a1a', '#ff7a4a'] } },
+  { group: 'Nebula', name: 'Violet nebula', look: { mode: 'nebula', colors: ['#04020a', '#3a1466', '#e07bff'] } },
+  { group: 'Nebula', name: 'Aurora', look: { mode: 'nebula', colors: ['#010507', '#0c5a3c', '#7dffb0'] } },
+  { group: 'Gradient', name: 'LBCC', look: { mode: 'gradient', colors: ['#da291c', '#2a0808', '#000000'] } },
+  { group: 'Gradient', name: 'Sunset', look: { mode: 'gradient', colors: ['#2b1055', '#d53369', '#ffb86b'] } },
+  { group: 'Gradient', name: 'Ocean', look: { mode: 'gradient', colors: ['#0f2027', '#203a43', '#2c5364'] } },
+  { group: 'Gradient', name: 'Dusk', look: { mode: 'gradient', colors: ['#141e30', '#243b55', '#6a7fa0'] } },
+];
+
+/** Parses the synced backdrop JSON, falling back to the default for anything missing or odd. */
+export function parseBackdrop(json: string): Backdrop {
+  try {
+    const b = JSON.parse(json) as Partial<Backdrop>;
+    return {
+      mode: BACKDROP_MODES.includes(b.mode as BackdropMode) ? b.mode as BackdropMode : DEFAULT_BACKDROP.mode,
+      colors: Array.isArray(b.colors) && b.colors.length ? b.colors.slice(0, 3) : DEFAULT_BACKDROP.colors,
+      image: typeof b.image === 'string' ? b.image : '',
+      effect: BACKDROP_EFFECTS.includes(b.effect as BackdropEffect) ? b.effect as BackdropEffect : 'none',
+    };
+  } catch { return DEFAULT_BACKDROP; }
+}
+
 export interface Point2 { x: number; z: number }
 
 /** Keeps a piece's center within the table surface, accounting for its own footprint and

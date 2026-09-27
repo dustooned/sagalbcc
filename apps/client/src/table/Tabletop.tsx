@@ -8,6 +8,7 @@ import { Note3D } from './Note3D.tsx';
 import { Piece3D, pieceBaseY } from './Piece3D.tsx';
 import { ui, useUi } from './selection.ts';
 import { TableSurface } from './TableSurface.tsx';
+import { Backdrop3D } from './Backdrop3D.tsx';
 
 export function Tabletop() {
   const t = useTable();
@@ -41,6 +42,7 @@ export function Tabletop() {
       scene={{ background: null }}
     >
       <color attach="background" args={['#0e0e16']} />
+      <Backdrop3D json={state.lookBackdrop} />
       <CameraRig seat={me?.seat ?? 0} />
       <ambientLight intensity={0.95} />
       <directionalLight position={[6, 18, 8]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}

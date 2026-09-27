@@ -137,6 +137,11 @@ export class TableRoom extends Room<{ state: TableState }> {
     this.on('editNote', (pid, m) => ops.editNote(c, pid, m.id, m.text));
     this.on('resetTable', pid => ops.clearTable(c, pid));
     this.on('setTableLook', async (pid, m) => {
+      const bgImage = m.backdrop && typeof m.backdrop === 'object' ? (m.backdrop as { image?: unknown }).image : undefined;
+      if (typeof bgImage === 'string' && bgImage !== '') {
+        const id = bgImage.startsWith('/uploads/') ? bgImage.slice(9) : '';
+        if (!ASSET_ID.test(id) || !(await services().storage.get(id))) return { ok: false, notice: 'That image was not found on the server.' };
+      }
       if (typeof m.image === 'string' && m.image !== '') {
         const id = m.image.startsWith('/uploads/') ? m.image.slice(9) : '';
         if (!ASSET_ID.test(id) || !(await services().storage.get(id))) return { ok: false, notice: 'That image was not found on the server.' };

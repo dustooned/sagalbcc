@@ -5,7 +5,7 @@
 // faceUp only switches which image (front or back) is shown.
 import { randomInt } from 'node:crypto';
 import {
-  DIE_KINDS, DIE_SIDES, MAX_PLAYERS, clampToTable,
+  BACKDROP_EFFECTS, BACKDROP_MODES, DIE_KINDS, DIE_SIDES, MAX_PLAYERS, clampToTable,
   type MarkerKind, type NormalizedKit, type PieceDefinition, type PieceFace, type PieceKind,
 } from '@kitforge/shared-types';
 import { MarkerState, NoteState, PieceState, PlayerState, TableState } from './TableState.ts';
@@ -504,9 +504,20 @@ export function editNote(ctx: TableContext, playerId: string, id: unknown, text:
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** Anyone can restyle the table: it's cosmetic, shared and logged. Image existence is the room's job. */
-export function setTableLook(ctx: TableContext, actorId: string, raw: { felt?: unknown; image?: unknown }): OpResult {
+export function setTableLook(ctx: TableContext, actorId: string, raw: { felt?: unknown; image?: unknown; backdrop?: unknown }): OpResult {
   const s = ctx.state, who = nameOf(ctx, actorId);
   let line = '';
+  if (raw.backdrop && typeof raw.backdrop === 'object') {
+    const b = raw.backdrop as { mode?: unknown; colors?: unknown; image?: unknown; effect?: unknown };
+    const mode = BACKDROP_MODES.find(m => m === b.mode);
+    const colors = Array.isArray(b.colors) ? b.colors.filter((c): c is string => typeof c === 'string' && HEX.test(c)).slice(0, 3).map(c => c.toLowerCase()) : [];
+    const image = b.image ? cleanImageUrl(b.image) : '';
+    const effect = BACKDROP_EFFECTS.find(e => e === b.effect) ?? 'none';
+    if (!mode || !colors.length) return fail();
+    if (mode === 'image' && !image) return fail('That image is not on this server.');
+    const json = JSON.stringify({ mode, colors, image, effect });
+    if (json !== s.lookBackdrop) { s.lookBackdrop = json; line = `${who} changed the background.`; }
+  }
   if (typeof raw.felt === 'string' && HEX.test(raw.felt) && raw.felt.toLowerCase() !== s.lookFelt.toLowerCase()) {
     s.lookFelt = raw.felt.toLowerCase();
     line = `${who} changed the table color.`;

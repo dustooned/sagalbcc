@@ -70,5 +70,6 @@ export interface SyncedTable {
   notes: SyncedMap<SyncedNote>;
   lookFelt: string;
   lookImage: string;
+  lookBackdrop: string;
   counterNames: { length: number; [Symbol.iterator](): Iterator<string> };
 }

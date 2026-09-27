@@ -33,7 +33,7 @@ export interface ClientMessages {
   editNote: { id: string; text: string };
   resetTable: Record<string, never>;
   /** Shared table surface: felt color and/or an uploaded /uploads/... image ('' removes it). */
-  setTableLook: { felt?: string; image?: string };
+  setTableLook: { felt?: string; image?: string; backdrop?: import('./table.ts').Backdrop };
   kick: { playerId: string };
   ping: { t: number };
 }
