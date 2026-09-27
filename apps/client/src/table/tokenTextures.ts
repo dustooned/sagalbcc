@@ -8,6 +8,7 @@ export const MARKER_COLORS: Record<SyncedMarker['kind'], string> = {
   damage: '#ff8c42',
   status: '#9b7bff',
   custom: '#ffd24a',
+  die: '#fdf6e3',
 };
 
 export function markerText(m: Pick<SyncedMarker, 'kind' | 'label' | 'value'>) {
@@ -58,6 +59,25 @@ export function markerTexture(m: Pick<SyncedMarker, 'kind' | 'label' | 'value'>)
     g.font = `bold ${size}px system-ui, sans-serif`;
     g.fillText(text.slice(0, 12), 64, 66);
   }
+  return finish(key, c);
+}
+
+/** One numeral texture per face value (1-6) — every face of the cube shows the current roll. */
+export const dieMaterial = (value: number) => materialFor(`d|${value}`, () => dieTexture(value), 0.35);
+
+function dieTexture(value: number) {
+  const key = `d|${value}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#fdf6e3'; g.fillRect(0, 0, 128, 128);
+  const r = 18;
+  g.beginPath(); g.roundRect(6, 6, 116, 116, r); g.strokeStyle = '#da291c'; g.lineWidth = 5; g.stroke();
+  g.fillStyle = '#1c1c28'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'bold 68px system-ui, sans-serif';
+  g.fillText(String(Math.max(1, Math.min(6, value || 1))), 64, 68);
   return finish(key, c);
 }
 

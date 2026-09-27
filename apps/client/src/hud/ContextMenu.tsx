@@ -15,7 +15,10 @@ function TokenMenu({ menu }: { menu: MenuState }) {
     <>
       <div className="menu-catcher" onPointerDown={() => ui.openMenu(null)} onContextMenu={e => { e.preventDefault(); ui.openMenu(null); }} />
       <menu className="context-menu" style={{ left, top }}>
-        {marker ? <>
+        {marker?.kind === 'die' ? <>
+          <li className="menu-head">Die</li>
+          <li><button onClick={run(() => actions.rollMarker(menu.id))}>🎲 Roll</button></li>
+        </> : marker ? <>
           <li className="menu-head">Marker</li>
           <li><button onClick={run(() => actions.adjustMarker(menu.id, 1))}>＋1</button></li>
           <li><button onClick={run(() => actions.adjustMarker(menu.id, -1))}>−1</button></li>

@@ -26,6 +26,7 @@ export function Toolbar() {
             <button className="btn small" onClick={() => actions.spawnMarker('minus')}>−1</button>
             <button className="btn small" onClick={() => actions.spawnMarker('damage')}>DMG</button>
             <button className="btn small" onClick={() => actions.spawnMarker('status')}>STATUS</button>
+            <button className="btn small" onClick={() => actions.spawnMarker('die')} title="Tap it to roll">🎲 Die</button>
             <button className="btn small" onClick={() => { const label = prompt('Marker label (e.g. FROZEN, SHIELD):'); if (label?.trim()) actions.spawnMarker('custom', label); }}>Custom…</button>
             <button className="btn small" onClick={() => { const text = prompt('Note for the table:'); if (text?.trim()) actions.addNote(text); }}>📝 Note…</button>
           </div>

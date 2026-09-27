@@ -6,14 +6,17 @@ import * as THREE from 'three';
 import { seatAngle, type Point2 } from '@kitforge/shared-types';
 import type { SyncedMarker } from '../net/stateTypes.ts';
 import { store } from '../net/tableStore.ts';
+import { actions } from '../pieces/actions.ts';
 import { DRAG_LIFT } from './Piece3D.tsx';
 import { beginDrag, localDrag } from './dragging.ts';
 import { ui } from './selection.ts';
-import { MARKER_COLORS, markerMaterial } from './tokenTextures.ts';
+import { dieMaterial, MARKER_COLORS, markerMaterial } from './tokenTextures.ts';
 
 const RADIUS = 0.24, HEIGHT = 0.06;
 const geometry = new THREE.CylinderGeometry(RADIUS, RADIUS, HEIGHT, 32);
 const outline = new THREE.RingGeometry(RADIUS + 0.02, RADIUS + 0.07, 32);
+const DIE_SIZE = 0.42;
+const dieGeometry = new THREE.BoxGeometry(DIE_SIZE, DIE_SIZE, DIE_SIZE);
 const sideMaterials = new Map<string, THREE.MeshStandardMaterial>();
 const side = (color: string) => {
   let m = sideMaterials.get(color);
@@ -44,7 +47,12 @@ function markerPos(id: string): Point2 | null {
 
 export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
   const group = useRef<THREE.Group>(null);
-  const materials = useMemo(() => [side(MARKER_COLORS[p.kind]), markerMaterial(p), side(MARKER_COLORS[p.kind])], [p.kind, p.label, p.value]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isDie = p.kind === 'die';
+  const height = isDie ? DIE_SIZE : HEIGHT;
+  const materials = useMemo(
+    () => (isDie ? dieMaterial(p.value) : [side(MARKER_COLORS[p.kind]), markerMaterial(p), side(MARKER_COLORS[p.kind])]),
+    [isDie, p.kind, p.label, p.value], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   useFrame((_, dt) => {
     const g = group.current;
@@ -53,7 +61,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     const m = store.state?.markers.get(p.id);
     const riding = m?.attachedTo ? store.piece(m.attachedTo) : undefined;
     const lifted = localDrag.has(p.id) || (riding && localDrag.has(riding.id));
-    const y = (riding ? p.pieceY + 0.06 : 0) + HEIGHT / 2 + 0.004 + (lifted ? DRAG_LIFT + 0.02 : 0);
+    const y = (riding ? p.pieceY + 0.06 : 0) + height / 2 + 0.004 + (lifted ? DRAG_LIFT + 0.02 : 0);
     const k = 1 - Math.exp(-dt * 20);
     if (g.position.lengthSq() === 0) g.position.set(pos.x, y, pos.z);
     g.position.x += (pos.x - g.position.x) * k;
@@ -69,7 +77,8 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     const m = store.state?.markers.get(p.id), pos = markerPos(p.id);
     if (!m || !pos) return;
     if (m.lockedBy && m.lockedBy !== store.playerId) { store.notify(`${store.state?.players.get(m.lockedBy)?.name ?? 'Someone'} is moving that marker.`); return; }
-    beginDrag(e, [{ id: p.id, ...pos }]);
+    // A die: a plain tap rolls it (no drag needed) — dragging still moves it like any token.
+    beginDrag(e, [{ id: p.id, ...pos }], isDie ? () => actions.rollMarker(p.id) : undefined);
   };
 
   const yaw = THREE.MathUtils.degToRad(seatAngle(store.me()?.seat ?? 0) + 90);
@@ -77,7 +86,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
   return (
     <group ref={group} rotation-y={yaw}>
       <mesh
-        geometry={geometry}
+        geometry={isDie ? dieGeometry : geometry}
         material={materials}
         castShadow
         onPointerDown={onPointerDown}
@@ -86,7 +95,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
         onContextMenu={e => { e.stopPropagation(); e.nativeEvent.preventDefault(); ui.openMenu({ x: e.clientX, y: e.clientY, id: p.id, source: 'marker' }); }}
       />
       {p.lockColor && (
-        <mesh geometry={outline} rotation-x={-Math.PI / 2} position-y={-HEIGHT / 2 + 0.001}>
+        <mesh geometry={outline} rotation-x={-Math.PI / 2} position-y={-height / 2 + 0.001}>
           <meshBasicMaterial color={p.lockColor} />
         </mesh>
       )}

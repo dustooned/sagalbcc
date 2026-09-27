@@ -12,7 +12,9 @@ const CLICK_SLOP_PX = 4;
 
 export interface DragItem { id: string; x: number; z: number; w?: number; h?: number }
 
-export function beginDrag(start: { clientX: number; clientY: number }, list: DragItem[]) {
+/** `onClick` (if given) fires instead of a drop when the pointer never moved past the slop —
+ *  e.g. a die: a plain tap rolls it, a drag moves it. */
+export function beginDrag(start: { clientX: number; clientY: number }, list: DragItem[], onClick?: () => void) {
   const at = screenToTable(start.clientX, start.clientY);
   if (!at || !list.length) return;
   const offsets = list.map(i => ({ id: i.id, dx: i.x - at.x, dz: i.z - at.z, w: i.w, h: i.h }));
@@ -46,6 +48,7 @@ export function beginDrag(start: { clientX: number; clientY: number }, list: Dra
     for (const o of offsets) localDrag.delete(o.id);
     if (many) store.send('dropMany', { items: final });
     else store.send('drop', { ...final[0], snap: moved });
+    if (!moved && onClick) onClick();
   };
 
   // Alt-Tab, a system dialog or a lost touch mid-drag: put things down where they are, so

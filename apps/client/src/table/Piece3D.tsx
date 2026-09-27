@@ -6,6 +6,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { PIECE_THICKNESS, type PieceKind } from '@kitforge/shared-types';
 import { store } from '../net/tableStore.ts';
+import { actions } from '../pieces/actions.ts';
 import { beginDrag, localDrag } from './dragging.ts';
 import { ui } from './selection.ts';
 import { backMaterial, boardEdgeMaterial, edgeMaterial, frontMaterial, highlightMaterial } from './textures.ts';
@@ -50,9 +51,12 @@ const angleTo = (from: number, to: number) => Math.atan2(Math.sin(to - from), Ma
 export const pieceBaseY = (rank: number) => PIECE_THICKNESS / 2 + 0.004 + rank * 0.0035;
 export const DRAG_LIFT = 0.4;
 
+const DOUBLE_TAP_MS = 350;
+
 export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
   const group = useRef<THREE.Group>(null);
   const flipper = useRef<THREE.Group>(null);
+  const lastTap = useRef(0);
   const thickness = p.kind === 'board' ? Math.max(PIECE_THICKNESS, Math.min(p.w, p.h) * 0.01) : PIECE_THICKNESS;
 
   const materials = useMemo(() => {
@@ -93,6 +97,11 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
     if (e.button !== 0 || ui.spaceHeld) return;
     e.stopPropagation();
     e.nativeEvent.preventDefault(); // tells CameraRig this touch grabbed a piece, not the table
+    // A quick double-tap flips the card — the reliable touch equivalent of the F key/menu item;
+    // the browser's own 'dblclick' doesn't fire consistently for two touch taps.
+    const now = performance.now();
+    const doubleTapped = now - lastTap.current < DOUBLE_TAP_MS;
+    lastTap.current = now;
     ui.openMenu(null);
     if (e.shiftKey) { ui.toggle(p.id); return; }
     if (!ui.selected.has(p.id)) ui.select([p.id]);
@@ -102,6 +111,7 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
       store.notify(`${store.state?.players.get(piece.lockedBy)?.name ?? 'Someone'} is moving that.`);
       return;
     }
+    if (doubleTapped) { actions.flip([p.id]); return; }
     const group = ui.selected.size > 1
       ? [...ui.selected].map(id => store.piece(id)).filter((c): c is NonNullable<typeof c> => !!c && (!c.lockedBy || c.lockedBy === store.playerId))
       : [piece];

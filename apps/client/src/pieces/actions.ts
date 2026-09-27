@@ -14,5 +14,6 @@ export const actions = {
   stack: (id: string, action: StackAction) => store.send('stackAction', { id, action }),
   spawnMarker: (kind: MarkerKind, label?: string) => store.send('spawnMarker', { kind, label }),
   adjustMarker: (id: string, delta: number) => store.send('adjustMarker', { id, delta }),
+  rollMarker: (id: string) => store.send('rollMarker', { id }),
   addNote: (text: string) => store.send('addNote', { text }),
 };

@@ -126,6 +126,7 @@ export class TableRoom extends Room<{ state: TableState }> {
     this.on('remove', (pid, m) => ops.remove(c, pid, cleanIds(m.ids)));
     this.on('spawnMarker', (pid, m) => ops.spawnMarker(c, pid, m));
     this.on('adjustMarker', (pid, m) => ops.adjustMarker(c, pid, m.id, m.delta));
+    this.on('rollMarker', (pid, m) => ops.rollMarker(c, pid, m.id));
     this.on('renameMarker', (pid, m) => ops.renameMarker(c, pid, m.id, m.label));
     this.on('addNote', (pid, m) => ops.addNote(c, pid, m));
     this.on('editNote', (pid, m) => ops.editNote(c, pid, m.id, m.text));

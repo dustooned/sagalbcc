@@ -1,4 +1,5 @@
 // Client-side view of the synced schema (the SDK rebuilds it by reflection; these just type it).
+import type { MarkerKind } from '@kitforge/shared-types';
 
 export interface SyncedPiece {
   id: string;
@@ -35,7 +36,7 @@ export interface SyncedPlayer {
 
 export interface SyncedMarker {
   id: string;
-  kind: 'plus' | 'minus' | 'damage' | 'status' | 'custom';
+  kind: MarkerKind;
   label: string;
   value: number;
   x: number;

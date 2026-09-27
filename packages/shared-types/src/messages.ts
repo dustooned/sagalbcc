@@ -20,6 +20,8 @@ export interface ClientMessages {
   spawnMarker: { kind: MarkerKind; label?: string; x?: number; z?: number };
   adjustMarker: { id: string; delta: number };
   renameMarker: { id: string; label: string };
+  /** Re-rolls a 'die' marker to a fresh random 1-6. No-op on any other marker kind. */
+  rollMarker: { id: string };
   addNote: { text: string; x?: number; z?: number };
   editNote: { id: string; text: string };
   resetTable: Record<string, never>;
@@ -37,7 +39,7 @@ export interface ServerMessages {
 }
 
 export type StackAction = 'shuffle' | 'flip' | 'spread';
-export type MarkerKind = 'plus' | 'minus' | 'damage' | 'status' | 'custom';
+export type MarkerKind = 'plus' | 'minus' | 'damage' | 'status' | 'custom' | 'die';
 
 /** Options sent with create/join. */
 export interface JoinOptions {
