@@ -521,7 +521,7 @@ export function clearTable(ctx: TableContext, actorId: string): OpResult {
 }
 
 // ---------------------------------------------------------------- point counters
-const COUNTER_NAME_MAX = 10, MAX_COUNTERS = 4, COUNTER_LIMIT = 9999;
+const COUNTER_NAME_MAX = 10, MAX_COUNTERS = 3, COUNTER_LIMIT = 9999;
 const cleanCounterName = (v: unknown) => (typeof v === 'string' ? v.replace(/[^\p{L}\p{N} _-]/gu, '').trim().toUpperCase().slice(0, COUNTER_NAME_MAX) : '');
 
 /** Change one player's counter by delta, or set it to value. Anyone can change anyone's — like TTS. */
@@ -555,5 +555,17 @@ export function removeCounter(ctx: TableContext, actorId: string, name: unknown)
   ctx.state.counterNames.splice(i, 1);
   ctx.state.players.forEach(p => p.counters.delete(name as string));
   appendLog(ctx, `${nameOf(ctx, actorId)} removed the ${name} counter.`);
+  return ok();
+}
+
+export function renameCounter(ctx: TableContext, actorId: string, from: unknown, to: unknown): OpResult {
+  const i = typeof from === 'string' ? ctx.state.counterNames.indexOf(from) : -1;
+  const key = cleanCounterName(to);
+  if (i < 0 || !key) return fail('Counter names use letters and numbers.');
+  if (key === from) return ok();
+  if (ctx.state.counterNames.includes(key)) return fail(`There's already a ${key} counter.`);
+  ctx.state.counterNames[i] = key;
+  ctx.state.players.forEach(p => { p.counters.set(key, p.counters.get(from as string) ?? 0); p.counters.delete(from as string); });
+  appendLog(ctx, `${nameOf(ctx, actorId)} renamed ${from} to ${key}.`);
   return ok();
 }

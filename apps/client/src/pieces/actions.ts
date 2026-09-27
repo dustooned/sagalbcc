@@ -18,6 +18,7 @@ export const actions = {
   counter: (playerId: string, key: string, delta: number) => store.send('counter', { playerId, key, delta }),
   setCounter: (playerId: string, key: string, value: number) => store.send('counter', { playerId, key, value }),
   addCounter: (name: string) => store.send('addCounter', { name }),
+  renameCounter: (from: string, to: string) => store.send('renameCounter', { from, to }),
   removeCounter: (name: string) => store.send('removeCounter', { name }),
   addNote: (text: string) => store.send('addNote', { text }),
 };

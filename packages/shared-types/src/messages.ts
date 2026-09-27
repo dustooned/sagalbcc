@@ -26,6 +26,7 @@ export interface ClientMessages {
   counter: { playerId: string; key: string; delta?: number; value?: number };
   addCounter: { name: string };
   removeCounter: { name: string };
+  renameCounter: { from: string; to: string };
   addNote: { text: string; x?: number; z?: number };
   editNote: { id: string; text: string };
   resetTable: Record<string, never>;

@@ -1,4 +1,5 @@
 // Top left: the rune (click to copy an invite link) and who's in your party.
+import { useState, type FormEvent } from 'react';
 import { SEAT_COLORS } from '@kitforge/shared-types';
 import { leaveTable } from '../net/connection.ts';
 import { copyInvite } from '../net/invite.ts';
@@ -11,7 +12,16 @@ export function RoomPanel() {
   if (!state) return null;
   const players = [...state.players.values()].sort((a, b) => a.seat - b.seat);
   const counters = [...state.counterNames];
-  const addCounter = () => { const n = prompt('New counter for every player (e.g. HP, GOLD, VP):'); if (n?.trim()) actions.addCounter(n); };
+  // Which counter's name is being edited: '' = none, '+' = a new one.
+  const [editing, setEditing] = useState('');
+  const [draft, setDraft] = useState('');
+  const edit = (k: string) => { setEditing(k); setDraft(k === '+' ? '' : k); };
+  const save = (e?: FormEvent) => {
+    e?.preventDefault();
+    const name = draft.trim();
+    if (name) { if (editing === '+') actions.addCounter(name); else actions.renameCounter(editing, name); }
+    setEditing('');
+  };
   const copy = () => void copyInvite(state.roomCode, text => t.notify(text));
 
   return (
@@ -27,9 +37,9 @@ export function RoomPanel() {
           <tr>
             <th />
             {counters.map(k => (
-              <th key={k}><button className="counter-name" title={`Remove the ${k} counter`} onClick={() => { if (confirm(`Remove the ${k} counter for everyone?`)) actions.removeCounter(k); }}>{k}</button></th>
+              <th key={k}><button className="counter-name" title={`Rename or remove ${k}`} onClick={() => edit(k)}>{k} ✎</button></th>
             ))}
-            <th>{counters.length < 4 && <button className="counter-name add" title="Add a counter" onClick={addCounter}>＋</button>}</th>
+            <th>{counters.length < 3 && <button className="counter-name add" title="Add a point counter" onClick={() => edit('+')}>＋ ADD</button>}</th>
           </tr>
         </thead>
         <tbody>
@@ -62,6 +72,17 @@ export function RoomPanel() {
           ))}
         </tbody>
       </table>
+      {editing && (
+        <form className="counter-edit" onSubmit={save}>
+          <input autoFocus maxLength={10} value={draft} placeholder="HP, GOLD, VP…" aria-label="Counter name"
+            onChange={e => setDraft(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === 'Escape') setEditing(''); }} />
+          <button className="btn small primary" type="submit">{editing === '+' ? 'Add' : 'Save'}</button>
+          {editing !== '+' && (
+            <button className="btn small danger" type="button" onClick={() => { if (confirm(`Remove ${editing} for everyone?`)) actions.removeCounter(editing); setEditing(''); }}>Remove</button>
+          )}
+          <button className="btn small ghost" type="button" onClick={() => setEditing('')}>✕</button>
+        </form>
+      )}
     </section>
   );
 }

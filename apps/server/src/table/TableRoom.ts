@@ -130,6 +130,7 @@ export class TableRoom extends Room<{ state: TableState }> {
     this.on('renameMarker', (pid, m) => ops.renameMarker(c, pid, m.id, m.label));
     this.on('counter', (pid, m) => ops.setCounter(c, pid, m));
     this.on('addCounter', (pid, m) => ops.addCounter(c, pid, m.name));
+    this.on('renameCounter', (pid, m) => ops.renameCounter(c, pid, m.from, m.to));
     this.on('removeCounter', (pid, m) => ops.removeCounter(c, pid, m.name));
     this.on('addNote', (pid, m) => ops.addNote(c, pid, m));
     this.on('editNote', (pid, m) => ops.editNote(c, pid, m.id, m.text));
