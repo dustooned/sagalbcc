@@ -1,4 +1,5 @@
 // Right-click menu for pieces, markers and notes.
+import { DIE_KINDS } from '@kitforge/shared-types';
 import { actions } from '../pieces/actions.ts';
 import { stackMembers } from '../pieces/stacks.ts';
 import { store, useTable } from '../net/tableStore.ts';
@@ -40,7 +41,7 @@ function TokenMenu({ menu }: { menu: MenuState }) {
     <>
       <div className="menu-catcher" onPointerDown={() => ui.openMenu(null)} onContextMenu={e => { e.preventDefault(); ui.openMenu(null); }} />
       <menu className="context-menu" style={{ left, top }}>
-        {marker?.kind === 'die' || marker?.kind === 'diePips' ? <>
+        {marker && DIE_KINDS.includes(marker.kind) ? <>
           <li className="menu-head">Die</li>
           <li><button onClick={run(() => actions.rollMarker(menu.id))}>🎲 Roll</button></li>
         </> : marker ? <>

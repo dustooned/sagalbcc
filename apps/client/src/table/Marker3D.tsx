@@ -9,10 +9,13 @@ import { store } from '../net/tableStore.ts';
 import { actions } from '../pieces/actions.ts';
 import { DRAG_LIFT } from './Piece3D.tsx';
 import { beginDrag, localDrag } from './dragging.ts';
+import { buildPolyhedronDie, randomQuaternion, type PolyDie } from './polyhedra.ts';
 import { ui } from './selection.ts';
 import { dieFaceMaterials, MARKER_COLORS, markerMaterial } from './tokenTextures.ts';
 
-const DIE_KINDS = new Set<SyncedMarker['kind']>(['die', 'diePips']);
+const BOX_DIE_KINDS = new Set<SyncedMarker['kind']>(['die', 'diePips']);
+type PolyKind = 'd4' | 'd8' | 'd12' | 'd20';
+const POLY_KINDS = new Set<SyncedMarker['kind']>(['d4', 'd8', 'd12', 'd20']);
 
 const RADIUS = 0.24, HEIGHT = 0.06;
 const geometry = new THREE.CylinderGeometry(RADIUS, RADIUS, HEIGHT, 32);
@@ -30,6 +33,27 @@ const DIE_FACE_ROTATIONS: Record<number, THREE.Euler> = {
   5: new THREE.Euler(Math.PI, 0, 0),
   6: new THREE.Euler(0, 0, -Math.PI / 2),
 };
+
+/** d20's circumradius reads as roughly the same "size" on the table as a d6/d8/d12 despite having
+ * more, smaller faces — this just tunes each shape to a similar visual footprint. */
+const POLY_RADIUS: Record<PolyKind, number> = { d4: 0.34, d8: 0.3, d12: 0.28, d20: 0.28 };
+const POLY_SUM: Record<PolyKind, number> = { d4: 0, d8: 9, d12: 13, d20: 21 };
+const polyCache = new Map<PolyKind, PolyDie>();
+function polyDie(kind: PolyKind): PolyDie {
+  let d = polyCache.get(kind);
+  if (d) return d;
+  const r = POLY_RADIUS[kind];
+  const base =
+    kind === 'd4' ? new THREE.TetrahedronGeometry(r) :
+    kind === 'd8' ? new THREE.OctahedronGeometry(r) :
+    kind === 'd12' ? new THREE.DodecahedronGeometry(r) :
+    new THREE.IcosahedronGeometry(r);
+  const sides = { d4: 4, d8: 8, d12: 12, d20: 20 }[kind];
+  d = buildPolyhedronDie(base, sides, POLY_SUM[kind]);
+  polyCache.set(kind, d);
+  return d;
+}
+
 const sideMaterials = new Map<string, THREE.MeshStandardMaterial>();
 const side = (color: string) => {
   let m = sideMaterials.get(color);
@@ -65,11 +89,17 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
   // showing up for the first time on your screen) always tumbles in instead of snapping to place.
   const lastValue = useRef(-1);
   const spinOffset = useRef(new THREE.Vector3());
-  const isDie = DIE_KINDS.has(p.kind);
-  const height = isDie ? DIE_SIZE : HEIGHT;
+  const rollStart = useRef(0);
+  const tumbleQuat = useRef(new THREE.Quaternion());
+  const currentQuat = useRef(new THREE.Quaternion());
+  const isBoxDie = BOX_DIE_KINDS.has(p.kind);
+  const isPoly = POLY_KINDS.has(p.kind);
+  const isDie = isBoxDie || isPoly;
+  const poly = isPoly ? polyDie(p.kind as PolyKind) : null;
+  const height = isBoxDie ? DIE_SIZE : isPoly ? POLY_RADIUS[p.kind as PolyKind] * 2 : HEIGHT;
   const materials = useMemo(
-    () => (isDie ? dieFaceMaterials(p.kind === 'diePips') : [side(MARKER_COLORS[p.kind]), markerMaterial(p), side(MARKER_COLORS[p.kind])]),
-    [isDie, p.kind, p.label, p.value], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (isBoxDie ? dieFaceMaterials(p.kind === 'diePips') : [side(MARKER_COLORS[p.kind]), markerMaterial(p), side(MARKER_COLORS[p.kind])]),
+    [isBoxDie, p.kind, p.label, p.value], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   useFrame((_, dt) => {
@@ -86,7 +116,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     g.position.z += (pos.z - g.position.z) * k;
     g.position.y += (y - g.position.y) * k;
 
-    if (isDie && dieSpin.current) {
+    if (isBoxDie && dieSpin.current) {
       // A fresh roll: tumble a couple of extra full turns around a random axis before settling —
       // the target keeps those extra turns forever, so the exponential ease-toward-target below
       // reads as a spin, not a snap, with no separate animation state machine needed.
@@ -101,6 +131,20 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
       r.x += (base.x + spinOffset.current.x - r.x) * dk;
       r.y += (base.y + spinOffset.current.y - r.y) * dk;
       r.z += (base.z + spinOffset.current.z - r.z) * dk;
+    } else if (isPoly && poly && dieSpin.current) {
+      // Quaternions can't "add extra turns" the way Euler angles can, so the tumble instead
+      // slerps through one random orientation first, then on to the real settled orientation —
+      // two legs read as one continuous tumble-and-land motion.
+      const TUMBLE_MS = 380;
+      if (lastValue.current !== p.value) {
+        lastValue.current = p.value;
+        rollStart.current = performance.now();
+        randomQuaternion(tumbleQuat.current);
+      }
+      const elapsed = performance.now() - rollStart.current;
+      const target = elapsed < TUMBLE_MS ? tumbleQuat.current : poly.quaternionFor(p.value);
+      currentQuat.current.slerp(target, 1 - Math.exp(-dt * (elapsed < TUMBLE_MS ? 9 : 5)));
+      dieSpin.current.quaternion.copy(currentQuat.current);
     }
   });
 
@@ -120,8 +164,8 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
 
   const mesh = (
     <mesh
-      geometry={isDie ? dieGeometry : geometry}
-      material={materials}
+      geometry={isBoxDie ? dieGeometry : isPoly && poly ? poly.geometry : geometry}
+      material={isBoxDie ? materials : isPoly && poly ? poly.material : materials}
       castShadow
       onPointerDown={onPointerDown}
       onPointerOver={e => { e.stopPropagation(); document.body.style.cursor = 'grab'; }}

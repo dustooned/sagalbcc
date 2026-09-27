@@ -5,8 +5,8 @@
 // faceUp only switches which image (front or back) is shown.
 import { randomInt } from 'node:crypto';
 import {
-  MAX_PLAYERS, clampToTable,
-  type NormalizedKit, type PieceDefinition, type PieceFace, type PieceKind,
+  DIE_KINDS, DIE_SIDES, MAX_PLAYERS, clampToTable,
+  type MarkerKind, type NormalizedKit, type PieceDefinition, type PieceFace, type PieceKind,
 } from '@kitforge/shared-types';
 import { MarkerState, NoteState, PieceState, PlayerState, TableState } from './TableState.ts';
 import { cleanImageUrl, cleanText, isFiniteNumber } from './sanitize.ts';
@@ -393,8 +393,8 @@ export function loadKit(ctx: TableContext, playerId: string, kit: NormalizedKit,
 
 // ---------------------------------------------------------------- markers & notes
 
-export const MARKER_KINDS = ['plus', 'minus', 'damage', 'status', 'custom', 'die', 'diePips'] as const;
-const DIE_KINDS = new Set<(typeof MARKER_KINDS)[number]>(['die', 'diePips']);
+export const MARKER_KINDS = ['plus', 'minus', 'damage', 'status', 'custom', 'die', 'diePips', 'd4', 'd8', 'd12', 'd20'] as const;
+const DIE_KIND_SET = new Set<MarkerKind>(DIE_KINDS);
 const MARKER_DEFAULTS: Record<(typeof MARKER_KINDS)[number], { label: string; value: number }> = {
   plus: { label: '+', value: 1 },
   minus: { label: '−', value: 1 },
@@ -403,6 +403,10 @@ const MARKER_DEFAULTS: Record<(typeof MARKER_KINDS)[number], { label: string; va
   custom: { label: 'MARK', value: 0 },
   die: { label: 'DIE', value: 1 },
   diePips: { label: 'DIE', value: 1 },
+  d4: { label: 'D4', value: 1 },
+  d8: { label: 'D8', value: 1 },
+  d12: { label: 'D12', value: 1 },
+  d20: { label: 'D20', value: 1 },
 };
 export const LIMITS = { markers: 300, notes: 150 };
 
@@ -414,7 +418,7 @@ export function spawnMarker(ctx: TableContext, playerId: string, msg: { kind?: u
   m.id = `m${ctx.nextId++}`;
   m.kind = kind;
   m.label = cleanText(msg.label, 16) || MARKER_DEFAULTS[kind].label;
-  m.value = DIE_KINDS.has(kind) ? 1 + ctx.randomInt(6) : MARKER_DEFAULTS[kind].value;
+  m.value = DIE_KIND_SET.has(kind) ? 1 + ctx.randomInt(DIE_SIDES[kind] ?? 6) : MARKER_DEFAULTS[kind].value;
   const pos = isFiniteNumber(msg.x) && isFiniteNumber(msg.z) ? clampToTable(msg.x, msg.z) : { x: 0, z: 0 };
   m.x = pos.x;
   m.z = pos.z;
@@ -433,9 +437,9 @@ export function adjustMarker(ctx: TableContext, playerId: string, id: unknown, d
 }
 export function rollMarker(ctx: TableContext, playerId: string, id: unknown): OpResult {
   const m = typeof id === 'string' ? ctx.state.markers.get(id) : undefined;
-  if (!m || !DIE_KINDS.has(m.kind as (typeof MARKER_KINDS)[number])) return fail();
+  if (!m || !DIE_KIND_SET.has(m.kind as MarkerKind)) return fail();
   if (lockedByOther(m, playerId)) return fail(lockNotice(ctx, m, 'die'));
-  m.value = 1 + ctx.randomInt(6);
+  m.value = 1 + ctx.randomInt(DIE_SIDES[m.kind as MarkerKind] ?? 6);
   appendLog(ctx, `${nameOf(ctx, playerId)} rolled a ${m.value}.`);
   return ok();
 }
