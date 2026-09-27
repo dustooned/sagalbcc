@@ -40,7 +40,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     // Random per boot unless pinned: tokens simply stop working after a server restart.
     sessionSecret: env.SESSION_SECRET || randomBytes(32).toString('hex'),
     sessionHours: Number(env.SESSION_HOURS) || 12,
-    uploadDir: path.resolve(TABLE_ROOT, env.UPLOAD_DIR || '.data/uploads'),
+    // Hosts wipe the app's own disk on every deploy, which would lose every uploaded image and
+    // model. On Railway, attaching a volume sets RAILWAY_VOLUME_MOUNT_PATH; uploads go there so
+    // they survive redeploys. UPLOAD_DIR still overrides everything.
+    uploadDir: path.resolve(TABLE_ROOT, env.UPLOAD_DIR || (env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(env.RAILWAY_VOLUME_MOUNT_PATH, 'uploads') : '.data/uploads')),
     maxUploadBytes: (Number(env.MAX_UPLOAD_MB) || 8) * 1024 * 1024,
     maxMessageBytes: (Number(env.MAX_MESSAGE_MB) || 6) * 1024 * 1024,
     clientDist: path.resolve(TABLE_ROOT, 'apps/client/dist'),
