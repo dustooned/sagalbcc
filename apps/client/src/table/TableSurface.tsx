@@ -82,7 +82,7 @@ function Frame() {
         </mesh>
       ))}
       {strips.map(([x, z, w, d], i) => (
-        <mesh key={`s${i}`} position={[x, RIM_TOP + 0.003, z]}>
+        <mesh key={`s${i}`} position={[x, RIM_TOP + 0.01, z]}>
           <boxGeometry args={[w, 0.006, d]} />
           <meshBasicMaterial color={EDGE_GLOW} toneMapped={false} />
         </mesh>
@@ -104,7 +104,7 @@ export function TableSurface({ felt, image }: { felt: string; image: string }) {
         <meshStandardMaterial map={surface} roughness={0.95} />
       </mesh>
       {overlay && (
-        <mesh rotation-x={-Math.PI / 2} position-y={0.001} receiveShadow>
+        <mesh rotation-x={-Math.PI / 2} position-y={0.01} receiveShadow>
           <planeGeometry args={[TABLE_W, TABLE_D]} />
           <meshStandardMaterial map={overlay} roughness={0.9} />
         </mesh>

@@ -92,6 +92,7 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0 || ui.spaceHeld) return;
     e.stopPropagation();
+    e.nativeEvent.preventDefault(); // tells CameraRig this touch grabbed a piece, not the table
     ui.openMenu(null);
     if (e.shiftKey) { ui.toggle(p.id); return; }
     if (!ui.selected.has(p.id)) ui.select([p.id]);

@@ -72,17 +72,32 @@ export function TableScreen() {
   const dropping = useKitDrop();
   const roomCode = t.state?.roomCode ?? '';
   useEffect(() => { if (roomCode) showRoomInAddressBar(roomCode); }, [roomCode]);
+  // A clear view of the table, one tap away — most useful on a small screen where the panels
+  // cover real board space. Per-viewer only; each tab starts with the HUD shown.
+  const [hudHidden, setHudHidden] = useState(false);
 
   return (
     <main className="table-screen">
       <Tabletop />
-      <div className="hud tl"><RoomPanel /></div>
-      <div className="hud tc"><Notices /></div>
-      <div className="hud tr"><TableLookPanel /></div>
-      <div className="hud cc"><EmptyTable /></div>
-      <div className="hud bl"><CameraPanel /></div>
-      <div className="hud br"><Toolbar /></div>
-      <ContextMenu />
+      {!hudHidden && (
+        <>
+          <div className="hud tl"><RoomPanel /></div>
+          <div className="hud tc"><Notices /></div>
+          <div className="hud tr"><TableLookPanel /></div>
+          <div className="hud cc"><EmptyTable /></div>
+          <div className="hud bl"><CameraPanel /></div>
+          <div className="hud br"><Toolbar /></div>
+          <ContextMenu />
+        </>
+      )}
+      <button
+        className="hud-toggle"
+        title={hudHidden ? 'Show panels' : 'Hide panels'}
+        aria-label={hudHidden ? 'Show panels' : 'Hide panels'}
+        onClick={() => setHudHidden(h => !h)}
+      >
+        {hudHidden ? '☰' : '✕'}
+      </button>
       {dropping && <div className="drop-overlay">Drop your kit to load it onto the table</div>}
     </main>
   );

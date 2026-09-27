@@ -1,5 +1,7 @@
 // Tabletop camera, TTS-style: right-drag orbits around the table, wheel zooms, middle-drag or
-// Space+drag pans, Home resets. Starts looking from your own seat. The on-screen camera buttons
+// Space+drag pans, Home resets. Touch: one finger orbits, two fingers pan and pinch-zoom — a
+// piece/marker/note's own onPointerDown calls preventDefault() so its touch is never also read
+// here as a table drag. Starts looking from your own seat. The on-screen camera buttons
 // (hud/CameraPanel) drive the same view through `cameraControls`, so touch devices can orbit too.
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -42,12 +44,36 @@ export function CameraRig({ seat }: { seat: number }) {
     const el = gl.domElement;
     let pan: { x: number; y: number } | null = null;
     let orbit: { x: number; y: number; moved: boolean } | null = null;
+    // Active touches by pointerId, for one-finger orbit / two-finger pan+pinch. A piece's own
+    // onPointerDown calls preventDefault(), so a touch that grabbed something never lands here.
+    const touches = new Map<number, { x: number; y: number }>();
+    let pinch: { dist: number; mx: number; my: number; baseDist: number } | null = null;
+
+    const panBy = (dx: number, dy: number) => {
+      const k = target.dist * 0.0016;
+      const yaw = (seatYaw + target.yaw) * DEG;
+      const right = { x: Math.cos(yaw), z: -Math.sin(yaw) }, up = { x: -Math.sin(yaw), z: -Math.cos(yaw) };
+      target.tx = THREE.MathUtils.clamp(target.tx - (right.x * dx - up.x * dy) * k, -30, 30);
+      target.tz = THREE.MathUtils.clamp(target.tz - (right.z * dx - up.z * dy) * k, -22, 22);
+    };
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       cameraControls.zoom(Math.exp(e.deltaY * 0.0012));
     };
     const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') {
+        if (e.defaultPrevented) return; // a piece/marker/note claimed this touch instead
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size === 1) {
+          orbit = { x: e.clientX, y: e.clientY, moved: false };
+        } else if (touches.size === 2) {
+          orbit = null;
+          const [a, b] = [...touches.values()];
+          pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, baseDist: target.dist };
+        }
+        return;
+      }
       if (e.button === 1 || (e.button === 0 && ui.spaceHeld)) {
         e.preventDefault();
         pan = { x: e.clientX, y: e.clientY };
@@ -57,6 +83,28 @@ export function CameraRig({ seat }: { seat: number }) {
       }
     };
     const onMove = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size >= 2) {
+          const [a, b] = [...touches.values()];
+          if (!pinch) pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, baseDist: target.dist };
+          const dist = Math.hypot(a.x - b.x, a.y - b.y);
+          target.dist = THREE.MathUtils.clamp(pinch.baseDist * (pinch.dist / Math.max(dist, 1)), MIN_DIST, MAX_DIST);
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+          panBy(mx - pinch.mx, my - pinch.my);
+          pinch.mx = mx; pinch.my = my;
+          return;
+        }
+        if (orbit) {
+          const dx = e.clientX - orbit.x, dy = e.clientY - orbit.y;
+          if (!orbit.moved && Math.hypot(dx, dy) < ORBIT_SLOP_PX) return;
+          if (!orbit.moved) orbit.moved = true;
+          orbit.x = e.clientX; orbit.y = e.clientY;
+          target.yaw -= dx * 0.3;
+          target.pitch = THREE.MathUtils.clamp(target.pitch + dy * 0.25, MIN_PITCH, MAX_PITCH);
+        }
+        return;
+      }
       if (orbit) {
         const dx = e.clientX - orbit.x, dy = e.clientY - orbit.y;
         if (!orbit.moved && Math.hypot(dx, dy) < ORBIT_SLOP_PX) return;
@@ -69,13 +117,16 @@ export function CameraRig({ seat }: { seat: number }) {
       if (!pan) return;
       const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
       pan = { x: e.clientX, y: e.clientY };
-      const k = target.dist * 0.0016;
-      const yaw = (seatYaw + target.yaw) * DEG;
-      const right = { x: Math.cos(yaw), z: -Math.sin(yaw) }, up = { x: -Math.sin(yaw), z: -Math.cos(yaw) };
-      target.tx = THREE.MathUtils.clamp(target.tx - (right.x * dx - up.x * dy) * k, -30, 30);
-      target.tz = THREE.MathUtils.clamp(target.tz - (right.z * dx - up.z * dy) * k, -22, 22);
+      panBy(dx, dy);
     };
     const onUp = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') {
+        touches.delete(e.pointerId);
+        if (touches.size < 2) pinch = null;
+        if (touches.size === 0) orbit = null;
+        else if (touches.size === 1) { const [only] = [...touches.values()]; orbit = { x: only.x, y: only.y, moved: false }; }
+        return;
+      }
       if (orbit) {
         // A right-drag orbits; only a plain right-click should open a piece's menu.
         if (orbit.moved) { ui.markOrbit(); document.body.style.cursor = ''; }
@@ -83,6 +134,7 @@ export function CameraRig({ seat }: { seat: number }) {
       }
       if (pan) { pan = null; el.releasePointerCapture?.(e.pointerId); }
     };
+    const onCancel = (e: PointerEvent) => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; if (touches.size === 0) orbit = null; };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Home' && !(e.target as HTMLElement)?.closest?.('input, textarea')) cameraControls.reset();
     };
@@ -90,12 +142,14 @@ export function CameraRig({ seat }: { seat: number }) {
     el.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey);
     return () => {
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey);
     };
   }, [gl, seatYaw]);

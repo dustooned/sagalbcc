@@ -75,6 +75,15 @@ kbd { margin-left: auto; font: 11px var(--font); color: var(--muted); border: 1p
 .empty-table p { margin: 0; }
 .drop-overlay { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; background: rgba(0, 0, 0, 0.6); border: 4px dashed var(--accent); pointer-events: none; font-size: 22px; font-weight: 800; }
 
+/* One tap to clear every panel off the table — most useful on a small screen. */
+.hud-toggle {
+  position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 3;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--panel); border: 1px solid var(--panel-border); backdrop-filter: blur(6px);
+  color: var(--text); font-size: 16px; line-height: 1; display: grid; place-items: center;
+}
+.hud-toggle:hover { border-color: var(--accent); }
+
 /* camera buttons */
 .cam-panel { display: grid; grid-template-columns: repeat(4, 34px); gap: 5px; padding: 8px; }
 .cam-btn { width: 34px; height: 34px; border-radius: 8px; background: #222; border: 1px solid var(--panel-border); font-size: 16px; line-height: 1; }

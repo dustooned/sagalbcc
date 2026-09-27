@@ -64,6 +64,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0 || ui.spaceHeld) return;
     e.stopPropagation();
+    e.nativeEvent.preventDefault(); // tells CameraRig this touch grabbed a marker, not the table
     ui.openMenu(null);
     const m = store.state?.markers.get(p.id), pos = markerPos(p.id);
     if (!m || !pos) return;

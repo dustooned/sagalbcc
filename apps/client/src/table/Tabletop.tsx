@@ -25,7 +25,10 @@ export function Tabletop() {
     <Canvas
       shadows="percentage"
       dpr={[1, 2]}
-      camera={{ fov: 42, near: 0.1, far: 260 }}
+      // Tight near/far keeps depth-buffer precision high at any zoom — a wide range here is what
+      // caused shimmering/z-fighting between close-together surfaces (felt vs. table image, the
+      // frame's edge strips) when zoomed out.
+      camera={{ fov: 42, near: 1, far: 140 }}
       onPointerMissed={e => { if (e.button === 0) ui.clear(); }}
       onContextMenu={e => e.preventDefault()}
       scene={{ background: null }}
