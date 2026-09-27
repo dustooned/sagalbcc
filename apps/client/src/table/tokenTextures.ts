@@ -62,10 +62,12 @@ export function markerTexture(m: Pick<SyncedMarker, 'kind' | 'label' | 'value'>)
   return finish(key, c);
 }
 
-/** One numeral texture per face value (1-6) — every face of the cube shows the current roll. */
-export const dieMaterial = (value: number) => materialFor(`d|${value}`, () => dieTexture(value), 0.35);
+/** A standard d6: each face carries its own number, opposite faces sum to 7 (1↔6, 2↔5, 3↔4) —
+ * the same convention as a real die. BoxGeometry's face order is +x,-x,+y,-y,+z,-z, so this array
+ * IS the face mapping DIE_FACE_ROTATIONS below is built against; the two must stay in sync. */
+const DIE_FACE_VALUES = [1, 6, 2, 5, 3, 4] as const;
 
-function dieTexture(value: number) {
+function dieFaceTexture(value: number) {
   const key = `d|${value}`;
   const hit = cache.get(key);
   if (hit) return hit;
@@ -73,12 +75,17 @@ function dieTexture(value: number) {
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
   g.fillStyle = '#fdf6e3'; g.fillRect(0, 0, 128, 128);
-  const r = 18;
-  g.beginPath(); g.roundRect(6, 6, 116, 116, r); g.strokeStyle = '#da291c'; g.lineWidth = 5; g.stroke();
+  g.beginPath(); g.roundRect(6, 6, 116, 116, 18); g.strokeStyle = '#da291c'; g.lineWidth = 5; g.stroke();
   g.fillStyle = '#1c1c28'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.font = 'bold 68px system-ui, sans-serif';
-  g.fillText(String(Math.max(1, Math.min(6, value || 1))), 64, 68);
+  g.fillText(String(value), 64, 68);
   return finish(key, c);
+}
+
+let dieFaces: THREE.MeshStandardMaterial[] | null = null;
+/** The 6 fixed face materials, in BoxGeometry's own face order — same array every render. */
+export function dieFaceMaterials() {
+  return dieFaces ??= DIE_FACE_VALUES.map(v => new THREE.MeshStandardMaterial({ map: dieFaceTexture(v), roughness: 0.35 }));
 }
 
 function wrap(g: CanvasRenderingContext2D, text: string, width: number) {
