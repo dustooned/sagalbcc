@@ -26,7 +26,8 @@ export const UNSUPPORTED_GLTF_EXTENSIONS = ['KHR_draco_mesh_compression', 'EXT_m
 export const BLENDER_EXPORT_HELP: ModelProblem = {
   error: 'Exporting a 3D model from Blender',
   fix: [
-    'Before exporting: select only your model, then Ctrl+A → All Transforms.',
+    'Easiest: the SAGA Blender add-on bakes and exports in one click. Download it from the Manual (📖 in Table Tools → 3D models).',
+    'By hand — before exporting: select only your model, then Ctrl+A → All Transforms.',
     'File → Export → glTF 2.0, then set:',
     '• Format: glTF Binary (.glb)',
     '• Include: ☑ Selected Objects',

@@ -97,6 +97,16 @@ a{color:var(--accent)}
 
 <section id="models"><h2>3D models from Blender</h2>
 <p><b>Easiest:</b> any <code>.obj</code> or <code>.stl</code> works as-is — it just shows in one plain color. For colors and textures, export <code>.glb</code> with the settings below.</p>
+<h3>Fastest: the SAGA Blender add-on</h3>
+<p>Bakes procedural materials, color ramps and textures into one small <code>.glb</code> with one button — no settings to get right.</p>
+<ol>
+<li>Download <a href="/tools/saga_bake_addon.py" download>saga_bake_addon.py</a>.</li>
+<li>Blender: <b>Edit → Preferences → Add-ons → ⌄ → Install from Disk…</b>, pick the file, tick <b>SAGA Bake &amp; Export</b>.</li>
+<li>Select your model, press <kbd>N</kbd>, open the <b>SAGA</b> tab, click <b>Bake &amp; Export</b>.</li>
+<li>Drop the <code>.glb</code> (saved next to your <code>.blend</code>) onto the table.</li>
+</ol>
+<p>Can't install add-ons on a school computer? Use <a href="/tools/saga_bake.py" download>saga_bake.py</a> instead: <b>Scripting</b> tab → <b>Text → Open</b> → <b>▶ Run</b>.</p>
+<h3>Or export by hand</h3>
 <p>In SAGA, the <b>ⓘ</b> next to <b>🧊 Add 3D model…</b> shows these settings too.</p>
 <h3>Before exporting</h3>
 <ol>
