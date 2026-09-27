@@ -87,9 +87,10 @@ export function TableScreen() {
           <div className="hud cc"><EmptyTable /></div>
           <div className="hud bl"><CameraPanel /></div>
           <div className="hud br"><Toolbar /></div>
-          <ContextMenu />
         </>
       )}
+      {/* Right-click menus work even with panels hidden — they're not part of the HUD to hide. */}
+      <ContextMenu />
       <button
         className="hud-toggle"
         title={hudHidden ? 'Show panels' : 'Hide panels'}

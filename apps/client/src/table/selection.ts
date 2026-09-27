@@ -1,7 +1,7 @@
 // Local-only UI state: which pieces are selected, hovered, or have a menu open.
 import { useSyncExternalStore } from 'react';
 
-export interface MenuState { x: number; y: number; id: string; source: 'table' | 'marker' | 'note' }
+export interface MenuState { x: number; y: number; id: string; source: 'table' | 'marker' | 'note' | 'background' }
 
 class UiState {
   selected = new Set<string>();

@@ -393,7 +393,8 @@ export function loadKit(ctx: TableContext, playerId: string, kit: NormalizedKit,
 
 // ---------------------------------------------------------------- markers & notes
 
-export const MARKER_KINDS = ['plus', 'minus', 'damage', 'status', 'custom', 'die'] as const;
+export const MARKER_KINDS = ['plus', 'minus', 'damage', 'status', 'custom', 'die', 'diePips'] as const;
+const DIE_KINDS = new Set<(typeof MARKER_KINDS)[number]>(['die', 'diePips']);
 const MARKER_DEFAULTS: Record<(typeof MARKER_KINDS)[number], { label: string; value: number }> = {
   plus: { label: '+', value: 1 },
   minus: { label: '−', value: 1 },
@@ -401,6 +402,7 @@ const MARKER_DEFAULTS: Record<(typeof MARKER_KINDS)[number], { label: string; va
   status: { label: 'STATUS', value: 0 },
   custom: { label: 'MARK', value: 0 },
   die: { label: 'DIE', value: 1 },
+  diePips: { label: 'DIE', value: 1 },
 };
 export const LIMITS = { markers: 300, notes: 150 };
 
@@ -412,7 +414,7 @@ export function spawnMarker(ctx: TableContext, playerId: string, msg: { kind?: u
   m.id = `m${ctx.nextId++}`;
   m.kind = kind;
   m.label = cleanText(msg.label, 16) || MARKER_DEFAULTS[kind].label;
-  m.value = kind === 'die' ? 1 + ctx.randomInt(6) : MARKER_DEFAULTS[kind].value;
+  m.value = DIE_KINDS.has(kind) ? 1 + ctx.randomInt(6) : MARKER_DEFAULTS[kind].value;
   const pos = isFiniteNumber(msg.x) && isFiniteNumber(msg.z) ? clampToTable(msg.x, msg.z) : { x: 0, z: 0 };
   m.x = pos.x;
   m.z = pos.z;
@@ -431,7 +433,7 @@ export function adjustMarker(ctx: TableContext, playerId: string, id: unknown, d
 }
 export function rollMarker(ctx: TableContext, playerId: string, id: unknown): OpResult {
   const m = typeof id === 'string' ? ctx.state.markers.get(id) : undefined;
-  if (!m || m.kind !== 'die') return fail();
+  if (!m || !DIE_KINDS.has(m.kind as (typeof MARKER_KINDS)[number])) return fail();
   if (lockedByOther(m, playerId)) return fail(lockNotice(ctx, m, 'die'));
   m.value = 1 + ctx.randomInt(6);
   appendLog(ctx, `${nameOf(ctx, playerId)} rolled a ${m.value}.`);

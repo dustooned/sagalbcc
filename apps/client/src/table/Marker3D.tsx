@@ -12,6 +12,8 @@ import { beginDrag, localDrag } from './dragging.ts';
 import { ui } from './selection.ts';
 import { dieFaceMaterials, MARKER_COLORS, markerMaterial } from './tokenTextures.ts';
 
+const DIE_KINDS = new Set<SyncedMarker['kind']>(['die', 'diePips']);
+
 const RADIUS = 0.24, HEIGHT = 0.06;
 const geometry = new THREE.CylinderGeometry(RADIUS, RADIUS, HEIGHT, 32);
 const outline = new THREE.RingGeometry(RADIUS + 0.02, RADIUS + 0.07, 32);
@@ -59,12 +61,14 @@ function markerPos(id: string): Point2 | null {
 export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
   const group = useRef<THREE.Group>(null);
   const dieSpin = useRef<THREE.Group>(null);
-  const lastValue = useRef(p.value);
+  // Never a real face value, so a freshly-mounted die (just spawned, or another player's die
+  // showing up for the first time on your screen) always tumbles in instead of snapping to place.
+  const lastValue = useRef(-1);
   const spinOffset = useRef(new THREE.Vector3());
-  const isDie = p.kind === 'die';
+  const isDie = DIE_KINDS.has(p.kind);
   const height = isDie ? DIE_SIZE : HEIGHT;
   const materials = useMemo(
-    () => (isDie ? dieFaceMaterials() : [side(MARKER_COLORS[p.kind]), markerMaterial(p), side(MARKER_COLORS[p.kind])]),
+    () => (isDie ? dieFaceMaterials(p.kind === 'diePips') : [side(MARKER_COLORS[p.kind]), markerMaterial(p), side(MARKER_COLORS[p.kind])]),
     [isDie, p.kind, p.label, p.value], // eslint-disable-line react-hooks/exhaustive-deps
   );
 

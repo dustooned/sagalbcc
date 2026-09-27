@@ -39,7 +39,7 @@ export interface ServerMessages {
 }
 
 export type StackAction = 'shuffle' | 'flip' | 'spread';
-export type MarkerKind = 'plus' | 'minus' | 'damage' | 'status' | 'custom' | 'die';
+export type MarkerKind = 'plus' | 'minus' | 'damage' | 'status' | 'custom' | 'die' | 'diePips';
 
 /** Options sent with create/join. */
 export interface JoinOptions {

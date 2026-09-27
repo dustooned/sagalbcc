@@ -9,6 +9,7 @@ export const MARKER_COLORS: Record<SyncedMarker['kind'], string> = {
   status: '#9b7bff',
   custom: '#ffd24a',
   die: '#fdf6e3',
+  diePips: '#fdf6e3',
 };
 
 export function markerText(m: Pick<SyncedMarker, 'kind' | 'label' | 'value'>) {
@@ -67,25 +68,49 @@ export function markerTexture(m: Pick<SyncedMarker, 'kind' | 'label' | 'value'>)
  * IS the face mapping DIE_FACE_ROTATIONS below is built against; the two must stay in sync. */
 const DIE_FACE_VALUES = [1, 6, 2, 5, 3, 4] as const;
 
-function dieFaceTexture(value: number) {
-  const key = `d|${value}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
+/** Standard pip layouts on a 3×3 grid, same as a physical die. */
+const PIP_LAYOUTS: Record<number, [number, number][]> = {
+  1: [[1, 1]],
+  2: [[0, 0], [2, 2]],
+  3: [[0, 0], [1, 1], [2, 2]],
+  4: [[0, 0], [2, 0], [0, 2], [2, 2]],
+  5: [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]],
+  6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]],
+};
+const PIP_POS = [26, 64, 102];
+
+function dieFaceCanvas(value: number, pips: boolean) {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
   g.fillStyle = '#fdf6e3'; g.fillRect(0, 0, 128, 128);
   g.beginPath(); g.roundRect(6, 6, 116, 116, 18); g.strokeStyle = '#da291c'; g.lineWidth = 5; g.stroke();
-  g.fillStyle = '#1c1c28'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = 'bold 68px system-ui, sans-serif';
-  g.fillText(String(value), 64, 68);
-  return finish(key, c);
+  g.fillStyle = '#1c1c28';
+  if (pips) {
+    for (const [col, row] of PIP_LAYOUTS[value] ?? []) {
+      g.beginPath(); g.arc(PIP_POS[col], PIP_POS[row], 11, 0, Math.PI * 2); g.fill();
+    }
+  } else {
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = 'bold 68px system-ui, sans-serif';
+    g.fillText(String(value), 64, 68);
+  }
+  return c;
 }
 
-let dieFaces: THREE.MeshStandardMaterial[] | null = null;
+function dieFaceTexture(value: number, pips: boolean) {
+  const key = `d|${pips ? 'p' : 'n'}|${value}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  return finish(key, dieFaceCanvas(value, pips));
+}
+
+const dieFaces = new Map<boolean, THREE.MeshStandardMaterial[]>();
 /** The 6 fixed face materials, in BoxGeometry's own face order — same array every render. */
-export function dieFaceMaterials() {
-  return dieFaces ??= DIE_FACE_VALUES.map(v => new THREE.MeshStandardMaterial({ map: dieFaceTexture(v), roughness: 0.35 }));
+export function dieFaceMaterials(pips: boolean) {
+  let faces = dieFaces.get(pips);
+  if (!faces) { faces = DIE_FACE_VALUES.map(v => new THREE.MeshStandardMaterial({ map: dieFaceTexture(v, pips), roughness: 0.35 })); dieFaces.set(pips, faces); }
+  return faces;
 }
 
 function wrap(g: CanvasRenderingContext2D, text: string, width: number) {

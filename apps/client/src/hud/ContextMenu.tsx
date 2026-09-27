@@ -5,6 +5,31 @@ import { store, useTable } from '../net/tableStore.ts';
 import { editNotePrompt } from '../table/Note3D.tsx';
 import { ui, useUi, type MenuState } from '../table/selection.ts';
 
+/** Right-click on empty table: no piece to act on directly, so this is mostly a hotkey cheat
+ *  sheet — but the buttons still work, acting on whatever's selected or last hovered. */
+function BackgroundMenu({ menu }: { menu: MenuState }) {
+  const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
+  const ids = ui.targets(id => !!store.piece(id));
+  const has = ids.length > 0;
+  const many = ids.length > 1 ? ` (${ids.length})` : '';
+  const left = Math.min(menu.x, window.innerWidth - 220), top = Math.max(8, Math.min(menu.y, window.innerHeight - 220));
+  return (
+    <>
+      <div className="menu-catcher" onPointerDown={() => ui.openMenu(null)} onContextMenu={e => { e.preventDefault(); ui.openMenu(null); }} />
+      <menu className="context-menu" style={{ left, top }}>
+        <li className="menu-head">{has ? 'Selected piece' : 'Hotkeys'}{many}</li>
+        <li><button disabled={!has} onClick={run(() => actions.flip(ids))}>Flip <kbd>F</kbd></button></li>
+        <li><button disabled={!has} onClick={run(() => actions.rotateLeft(ids))}>Rotate left <kbd>Q</kbd></button></li>
+        <li><button disabled={!has} onClick={run(() => actions.rotateRight(ids))}>Rotate right <kbd>E</kbd></button></li>
+        <li><button disabled={!has} onClick={run(() => actions.tap(ids))}>Tap / Untap <kbd>T</kbd></button></li>
+        <li><button disabled={!has} className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete <kbd>Del</kbd></button></li>
+        <li className="sep" />
+        <li className="menu-head">Escape <kbd>Esc</kbd> deselects</li>
+      </menu>
+    </>
+  );
+}
+
 function TokenMenu({ menu }: { menu: MenuState }) {
   const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
   const marker = menu.source === 'marker' ? store.state?.markers.get(menu.id) : undefined;
@@ -15,7 +40,7 @@ function TokenMenu({ menu }: { menu: MenuState }) {
     <>
       <div className="menu-catcher" onPointerDown={() => ui.openMenu(null)} onContextMenu={e => { e.preventDefault(); ui.openMenu(null); }} />
       <menu className="context-menu" style={{ left, top }}>
-        {marker?.kind === 'die' ? <>
+        {marker?.kind === 'die' || marker?.kind === 'diePips' ? <>
           <li className="menu-head">Die</li>
           <li><button onClick={run(() => actions.rollMarker(menu.id))}>🎲 Roll</button></li>
         </> : marker ? <>
@@ -40,6 +65,7 @@ export function ContextMenu() {
   const u = useUi();
   const menu = u.menu;
   if (!menu || !t.state) return null;
+  if (menu.source === 'background') return <BackgroundMenu menu={menu} />;
   if (menu.source === 'marker' || menu.source === 'note') return <TokenMenu menu={menu} />;
   const piece = t.piece(menu.id);
   if (!piece) return null;
