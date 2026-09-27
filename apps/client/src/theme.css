@@ -31,6 +31,7 @@ kbd { margin-left: auto; font: 11px var(--font); color: var(--muted); border: 1p
 
 /* ---------- buttons & fields ---------- */
 .btn { background: #2a2a38; border: 1px solid var(--panel-border); border-radius: 8px; padding: 7px 12px; font-weight: 700; letter-spacing: 0.01em; }
+a.btn { color: inherit; text-decoration: none; display: inline-block; }
 .btn:hover:not(:disabled) { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .btn.primary:hover:not(:disabled) { background: var(--accent-dark); border-color: var(--accent-dark); }
@@ -138,7 +139,19 @@ kbd { margin-left: auto; font: 11px var(--font); color: var(--muted); border: 1p
   .cam-btn { width: 30px; height: 30px; font-size: 14px; }
   .cam-hint { display: none; }
   .room-code { font-size: 16px; }
+  /* Closed panels shrink to an icon button so the corners never overlap. */
+  .look-panel:not(.open), .tools:not(.open) { width: auto; }
+  .look-panel:not(.open) .head-label, .tools:not(.open) .head-label { display: none; }
+  .tools-head { gap: 8px; }
+  .room-panel { max-width: calc(100vw - 96px); }
+  .room-panel .players { min-width: 0; }
+  .hud.tr { z-index: 4; }
+  .tools.open .tools-body { max-height: 55vh; overflow-y: auto; }
+  /* Hide-panels button sits beside the camera pad instead of on top of Table Tools. */
+  .hud-toggle { left: auto; right: 12px; transform: none; bottom: 12px; }
+  .hud.br { bottom: 60px; }
 }
+.tools-head .head-label { flex: 1; }
 
 /* ---------- invites ---------- */
 .center-text { text-align: center; margin: 0; }

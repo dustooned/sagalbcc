@@ -15,7 +15,7 @@ export function Toolbar() {
 
   return (
     <section className={`hud-panel tools ${open ? 'open' : ''}`}>
-      <button className="tools-head" onClick={() => setOpen(o => !o)}>🧰 TABLE TOOLS <span>{open ? '▾' : '▸'}</span></button>
+      <button className="tools-head" onClick={() => setOpen(o => !o)}>🧰<span className="head-label"> TABLE TOOLS</span> <span>{open ? '▾' : '▸'}</span></button>
       {open && (
         <div className="tools-body">
           <div className="row wrap">
@@ -23,6 +23,7 @@ export function Toolbar() {
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickImageFile}>🖼️ Add image…</button>
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickModelFile} title="A .glb exported from Blender">🧊 Add 3D model…</button>
             <a className="btn small ghost" href="https://dustooned.github.io/kitb/" target="_blank" rel="noreferrer">🛠️ Kit Forge</a>
+            <a className="btn small ghost" href="/manual.html" target="_blank" rel="noreferrer">📖 Manual</a>
           </div>
           <div className="field"><span>MARKERS &amp; NOTES</span></div>
           <div className="row wrap">

@@ -32,7 +32,7 @@ export function TableLookPanel() {
 
   return (
     <section className={`hud-panel look-panel ${open ? 'open' : ''}`}>
-      <button className="tools-head" onClick={() => setOpen(o => !o)}>🎨 TABLE LOOK <span>{open ? '▾' : '▸'}</span></button>
+      <button className="tools-head" onClick={() => setOpen(o => !o)}>🎨<span className="head-label"> TABLE LOOK</span> <span>{open ? '▾' : '▸'}</span></button>
       {open && (
         <div className="tools-body">
           <div className="swatches" role="radiogroup" aria-label="Table color">
