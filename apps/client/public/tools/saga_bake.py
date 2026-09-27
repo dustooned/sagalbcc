@@ -58,11 +58,22 @@ def unwrap(obj):
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.02)
+    # Low-poly models with many separate faces can end up squeezed into a thin strip, leaving
+    # each face only a few pixels (which shows up as a dotted pattern in SAGA). Evening out the
+    # island sizes and repacking fills the whole square instead.
+    bpy.ops.uv.select_all(action="SELECT")
+    for step in (lambda: bpy.ops.uv.average_islands_scale(),
+                 lambda: bpy.ops.uv.pack_islands(rotate=True, margin=0.004)):
+        try:
+            step()
+        except (TypeError, RuntimeError):
+            pass
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
 def bake_color(obj):
     img = bpy.data.images.new(obj.name + "_baked", TEXTURE_SIZE, TEXTURE_SIZE)
+    img.generated_color = (0.5, 0.5, 0.5, 1.0)
     temp_nodes = []
     for slot in obj.material_slots:
         if not slot.material:
@@ -81,7 +92,13 @@ def bake_color(obj):
     bake.use_pass_direct = False      # color only — no baked-in shadows or lights
     bake.use_pass_indirect = False
     bake.use_pass_color = True
-    bake.margin = 4
+    # A wide margin pushes each face's color out past its edges, so distant (mipmapped) views
+    # never blend in the empty black between islands.
+    bake.margin = max(16, TEXTURE_SIZE // 32)
+    try:
+        bake.margin_type = "EXTEND"
+    except (AttributeError, TypeError):
+        pass
 
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)

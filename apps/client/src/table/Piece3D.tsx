@@ -2,7 +2,7 @@
 // underneath. Position comes live from synced state every frame (smoothed), except while *you*
 // are dragging it.
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useFrame, type ThreeEvent } from '@react-three/fiber';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { assetUrl } from '../config.ts';
@@ -63,6 +63,8 @@ const loadingMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', trans
  *  A translucent block holds its place while it downloads. */
 function ModelBody({ url, w, h, thickness }: { url: string; w: number; h: number; thickness: number }) {
   const [obj, setObj] = useState<THREE.Object3D | null>(null);
+  // Sharper textures at a glancing angle (the default blurs or shimmers fine detail).
+  const anisotropy = useThree(s => Math.min(8, s.gl.capabilities.getMaxAnisotropy()));
   useEffect(() => {
     let live = true;
     let p = modelCache.get(url);
@@ -74,11 +76,21 @@ function ModelBody({ url, w, h, thickness }: { url: string; w: number; h: number
       const s = Math.min(w / (size.x || 1), h / (size.z || 1));
       c.scale.setScalar(s);
       c.position.set(-mid.x * s, -box.min.y * s - thickness / 2, -mid.z * s);
-      c.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      c.traverse(o => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+          for (const v of Object.values(m ?? {})) {
+            const tex = v as THREE.Texture | null;
+            if (tex?.isTexture && tex.anisotropy !== anisotropy) { tex.anisotropy = anisotropy; tex.needsUpdate = true; }
+          }
+        }
+      });
       setObj(c);
     }).catch(() => { modelCache.delete(url); if (live) store.notify('A 3D model on the table could not be loaded.'); });
     return () => { live = false; };
-  }, [url, w, h, thickness]);
+  }, [url, w, h, thickness, anisotropy]);
   return obj ? <primitive object={obj} /> : <mesh geometry={geometryFor(w, h, thickness * 6)} material={loadingMaterial} />;
 }
 
