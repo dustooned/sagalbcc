@@ -25,7 +25,7 @@ a{color:var(--accent)}
 <body>
 <header><h1>🎲 SAGA Manual</h1><p>A live 3D playtest table for your group. Runs in the browser on PCs, tablets and phones.</p></header>
 <main>
-<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#dice">Dice &amp; markers</a><a href="#formats">File formats</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
+<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#dice">Dice &amp; markers</a><a href="#formats">File formats</a><a href="#animated">Animated</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
 
 <section id="start"><h2>Quick start</h2>
 <ol>
@@ -41,7 +41,7 @@ a{color:var(--accent)}
 <table>
 <tr><td><b>📦 Load kit…</b></td><td>A <code>.kittable.json</code> from Kit Forge's <b>Send to Table</b> or Export ZIP.</td></tr>
 <tr><td><b>🖼️ Add image…</b></td><td>Any PNG/JPG/WebP becomes a piece. Fastest way to test one idea.</td></tr>
-<tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code>, <code>.obj</code> or <code>.stl</code>. See <a href="#formats">File formats</a><a href="#models">3D models</a>.</td></tr>
+<tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code>, <code>.obj</code> or <code>.stl</code>. See <a href="#formats">File formats</a><a href="#animated">Animated</a><a href="#models">3D models</a>.</td></tr>
 <tr><td><b>🎨 Table look → Background</b></td><td>Space, nebula and gradient presets, your own gradient or image, plus a Wave or Kaleidoscope effect. <b>Atmosphere</b> adds fog, desert dust, rain, snow or embers with a strength slider. Everyone sees the same look.</td></tr>
 <tr><td><b>Markers &amp; notes</b></td><td>+1, −1, DMG, STATUS, custom labels, notes, and dice.</td></tr>
 <tr><td><b>Drag &amp; drop</b></td><td>Drop any of the files above anywhere on the page.</td></tr>
@@ -91,8 +91,20 @@ a{color:var(--accent)}
 <tr><th>What</th><th>Use</th><th>Not accepted</th></tr>
 <tr><td>Kits</td><td><code>.kittable.json</code> (Kit Forge → Send to Table, or inside its Export ZIP)</td><td>The <code>.zip</code> itself — unzip it first</td></tr>
 <tr><td>Images</td><td>PNG, JPG, WebP (up to 8 MB)</td><td>PSD, PDF, SVG — make those in Kit Forge instead</td></tr>
+<tr><td>Animated</td><td><b>GIF</b> — up to 8 MB, 300 frames, 20 seconds, 1024 px<br><b>WebM / MP4</b> clips — up to 10 MB, 10 seconds, 1280 px (720p). Silent, loop forever.</td><td>Longer or bigger files — SAGA explains how to trim them</td></tr>
 <tr><td>3D models</td><td><code>.glb</code> — keeps colors &amp; textures<br><code>.obj</code> / <code>.stl</code> — quick, shape only (one plain color)</td><td>.blend, .gltf, .fbx, .dae, .usdz — export them as .glb</td></tr>
 </table>
+</section>
+
+<section id="animated"><h2>Animated pieces (GIF, WebM, MP4)</h2>
+<p>Drop a GIF or a short clip on the table (or <b>🖼️ Add image…</b>) and it plays on the piece for everyone, looping, with no sound.</p>
+<table>
+<tr><th>Format</th><th>Limits</th><th>Transparency</th></tr>
+<tr><td>GIF</td><td>8 MB · 300 frames · 20 s · 1024 px</td><td>Yes, everywhere</td></tr>
+<tr><td>WebM (VP9)</td><td>10 MB · 10 s · 1280 px</td><td>Yes on Chrome, Edge, Firefox. iPhone/iPad can’t show transparent WebM.</td></tr>
+<tr><td>MP4 (H.264)</td><td>10 MB · 10 s · 1280 px</td><td>No — MP4 has no transparency</td></tr>
+</table>
+<p>Clear areas of a token show the table through them. If a file is too long or too big, SAGA tells you exactly what to trim — <a href="https://ezgif.com" target="_blank" rel="noopener">ezgif.com</a> can resize, cut and convert GIFs and clips for free.</p>
 </section>
 
 <section id="models"><h2>3D models from Blender</h2>

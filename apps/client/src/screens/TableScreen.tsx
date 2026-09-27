@@ -1,7 +1,7 @@
 // The table: 3D pieces fill the screen, small HUD panels sit in the corners.
 import { useEffect, useState } from 'react';
 import { actions } from '../pieces/actions.ts';
-import { addImageFile } from '../pieces/loadImage.ts';
+import { addImageFile, isTableMedia } from '../pieces/loadImage.ts';
 import { addModelFile } from '../pieces/loadModel.ts';
 import { loadKitFile } from '../pieces/loadKit.ts';
 import { showRoomInAddressBar } from '../net/invite.ts';
@@ -61,10 +61,10 @@ function useKitDrop() {
       const file = e.dataTransfer?.files[0];
       if (!file) return;
       if (/\.json$/i.test(file.name)) void loadKitFile(file);
-      else if (file.type.startsWith('image/')) void addImageFile(file);
+      else if (isTableMedia(file)) void addImageFile(file);
       // .glb loads; other 3D formats go the same way so they get the Blender export steps.
       else if (/\.(glb|gltf|blend|fbx|obj|stl|dae|3ds|usdz?)$/i.test(file.name)) void addModelFile(file);
-      else store.notify('Drop a .kittable.json from Kit Forge, a PNG/JPG/WebP image, or a .glb/.obj/.stl 3D model.');
+      else store.notify('Drop a .kittable.json from Kit Forge, a PNG/JPG/WebP/GIF image, a WebM/MP4 clip, or a .glb/.obj/.stl 3D model.');
     };
     window.addEventListener('dragover', onOver);
     window.addEventListener('dragleave', onLeave);

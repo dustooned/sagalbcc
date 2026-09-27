@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import type { PieceFace } from '@kitforge/shared-types';
 import { assetUrl } from '../config.ts';
+import { gifTexture, isGif, isVideo, videoTexture } from './animatedTextures.ts';
 
 const loader = new THREE.TextureLoader();
 loader.setCrossOrigin('anonymous');
@@ -17,7 +18,10 @@ function finish(tex: THREE.Texture) {
 }
 function imageTexture(url: string) {
   let tex = textures.get(url);
-  if (!tex) { tex = finish(loader.load(url)); textures.set(url, tex); }
+  if (!tex) {
+    tex = isGif(url) ? gifTexture(url, finish) : isVideo(url) ? videoTexture(url, finish) : finish(loader.load(url));
+    textures.set(url, tex);
+  }
   return tex;
 }
 function material(key: string, make: () => THREE.Texture) {
@@ -90,5 +94,19 @@ export function frontMaterial(face: PieceFace | null) {
   if (!face?.frontImage) return material('front:generated', generatedFront);
   return material(`img:${face.frontImage}`, () => imageTexture(assetUrl(face.frontImage)));
 }
+/** A token drawn only where its picture is: fully clear pixels are cut out, so a transparent PNG,
+ *  GIF or WebM shows the table through it instead of the piece's slab. */
+const cutouts = new Map<string, THREE.MeshStandardMaterial>();
+export function cutoutMaterial(image: string) {
+  let m = cutouts.get(image);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ map: imageTexture(assetUrl(image)), roughness: 0.75, metalness: 0, alphaTest: 0.35 });
+    cutouts.set(image, m);
+  }
+  return m;
+}
+/** The slab's sides, hidden for cut-out tokens. */
+export const hiddenMaterial = new THREE.MeshBasicMaterial({ visible: false });
+
 export const edgeMaterial = new THREE.MeshStandardMaterial({ color: '#e9e4d6', roughness: 0.9 });
 export const boardEdgeMaterial = new THREE.MeshStandardMaterial({ color: '#c9c2ae', roughness: 0.9 });

@@ -3,10 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Application, type NextFunction, type Request, type Response } from 'express';
-import { MODEL_LIMITS, modelProblems, type AuthResponse, type UploadResponse } from '@kitforge/shared-types';
+import { MEDIA_LIMITS, MODEL_LIMITS, mediaProblems, modelProblems, type AuthResponse, type UploadResponse } from '@kitforge/shared-types';
 import { RateLimiter, issueToken, passwordMatches, verifyToken } from '../auth.ts';
 import type { Services } from '../services.ts';
-import { MIME, isGlb, sniffImageType } from '../storage/AssetStorage.ts';
+import { MIME, isGlb, sniffImageType, sniffVideoType } from '../storage/AssetStorage.ts';
 import { checkGlb } from '../storage/glbCheck.ts';
 
 const ip = (req: Request) => req.ip || req.socket.remoteAddress || 'unknown';
@@ -56,8 +56,20 @@ export function installRoutes(app: Application, { config, storage }: Services) {
         res.status(201).json({ assetUrl: `/uploads/${saved.id}` } satisfies UploadResponse);
         return;
       }
+      const video = sniffVideoType(body);
+      if (video) {
+        if (body.length > MEDIA_LIMITS.videoMaxMB * 1024 * 1024) { res.status(413).json(mediaProblems.clipTooBig(body.length / 1024 / 1024)); return; }
+        const saved = await storage.save(body, { type: video });
+        res.status(201).json({ assetUrl: `/uploads/${saved.id}` } satisfies UploadResponse);
+        return;
+      }
       const type = sniffImageType(body);
-      if (!type) { res.status(415).json({ error: 'Only PNG, JPG or WebP images — or a .glb 3D model — can be imported.' }); return; }
+      if (!type) { res.status(415).json({ error: 'Only PNG, JPG, WebP or GIF images, WebM/MP4 clips, or a .glb 3D model can be imported.' }); return; }
+      if (type === 'gif') {
+        const mb = body.length / 1024 / 1024, side = Math.max(body.readUInt16LE(6), body.readUInt16LE(8));
+        if (mb > MEDIA_LIMITS.gifMaxMB) { res.status(413).json(mediaProblems.gifTooBig(mb)); return; }
+        if (side > MEDIA_LIMITS.gifMaxPx) { res.status(422).json(mediaProblems.gifTooLarge(side)); return; }
+      }
       if (body.length > config.maxUploadBytes) { res.status(413).json({ error: `Images can be up to ${config.maxUploadBytes / 1024 / 1024} MB.` }); return; }
       const saved = await storage.save(body, { type });
       res.status(201).json({ assetUrl: `/uploads/${saved.id}` } satisfies UploadResponse);
@@ -70,6 +82,18 @@ export function installRoutes(app: Application, { config, storage }: Services) {
     if (!asset?.data) { res.sendStatus(404); return; }
     res.setHeader('Content-Type', MIME[asset.type]);
     res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    res.setHeader('Accept-Ranges', 'bytes');
+    // Safari won't play a video without byte-range support.
+    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ''));
+    if (range) {
+      const size = asset.data.length;
+      const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+      const end = range[1] && range[2] ? Math.min(size - 1, Number(range[2])) : size - 1;
+      if (start >= size || start > end) { res.setHeader('Content-Range', `bytes */${size}`); res.sendStatus(416); return; }
+      res.status(206).setHeader('Content-Range', `bytes ${start}-${end}/${size}`);
+      res.send(asset.data.subarray(start, end + 1));
+      return;
+    }
     res.send(asset.data);
   });
 

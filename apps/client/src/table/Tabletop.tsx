@@ -1,5 +1,12 @@
 // The shared 3D table: surface and every piece, marker and note.
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { tickAnimatedTextures } from './animatedTextures.ts';
+
+/** Advances animated GIF faces once per rendered frame (video textures update themselves). */
+function AnimationClock() {
+  useFrame(() => tickAnimatedTextures());
+  return null;
+}
 import { SEAT_COLORS } from '@kitforge/shared-types';
 import { useTable } from '../net/tableStore.ts';
 import { CameraRig } from './CameraRig.tsx';
@@ -43,6 +50,7 @@ export function Tabletop() {
       scene={{ background: null }}
     >
       <color attach="background" args={['#0e0e16']} />
+      <AnimationClock />
       <Backdrop3D json={state.lookBackdrop} />
       <Atmosphere3D json={state.lookAtmosphere} />
       <CameraRig seat={me?.seat ?? 0} />

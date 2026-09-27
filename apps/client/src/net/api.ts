@@ -41,6 +41,11 @@ export async function uploadImage(file: Blob) {
   return request<UploadResponse>('/api/upload', { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
 }
 
+/** A short WebM/MP4 clip (up to 15 MB — the server enforces the same limit). */
+export async function uploadMedia(file: Blob) {
+  return request<UploadResponse>('/api/upload', { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+}
+
 /** A .glb 3D model. The server re-checks it (size, triangles, textures, no external files); a
  *  rejection's error carries a `fix` explaining how to correct it in Blender. */
 export async function uploadModel(file: Blob) {

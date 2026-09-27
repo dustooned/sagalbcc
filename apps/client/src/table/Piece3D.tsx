@@ -11,7 +11,7 @@ import { store } from '../net/tableStore.ts';
 import { actions } from '../pieces/actions.ts';
 import { beginDrag, localDrag } from './dragging.ts';
 import { ui } from './selection.ts';
-import { backMaterial, boardEdgeMaterial, edgeMaterial, frontMaterial, highlightMaterial } from './textures.ts';
+import { backMaterial, boardEdgeMaterial, cutoutMaterial, edgeMaterial, frontMaterial, hiddenMaterial, highlightMaterial } from './textures.ts';
 
 const DEG = Math.PI / 180;
 const geometries = new Map<string, THREE.BoxGeometry>();
@@ -102,6 +102,12 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
 
   const materials = useMemo(() => {
     const face = (() => { try { return p.face ? JSON.parse(p.face) : null; } catch { return null; } })();
+    // Tokens with a picture are cut out to the picture's own shape (both sides show it unless the
+    // piece has its own back image).
+    if (p.kind === 'piece' && face?.frontImage) {
+      const back = cutoutMaterial(p.backImage || face.frontImage);
+      return [hiddenMaterial, hiddenMaterial, cutoutMaterial(face.frontImage), back, hiddenMaterial, hiddenMaterial];
+    }
     const edge = p.kind === 'board' ? boardEdgeMaterial : edgeMaterial;
     // BoxGeometry material order: +x, -x, +y (top = front), -y (bottom = back), +z, -z.
     return [edge, edge, frontMaterial(face), backMaterial(p.backImage), edge, edge];
