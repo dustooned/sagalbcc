@@ -23,6 +23,9 @@ function BackgroundMenu({ menu }: { menu: MenuState }) {
         <li><button disabled={!has} onClick={run(() => actions.rotateLeft(ids))}>Rotate left <kbd>Q</kbd></button></li>
         <li><button disabled={!has} onClick={run(() => actions.rotateRight(ids))}>Rotate right <kbd>E</kbd></button></li>
         <li><button disabled={!has} onClick={run(() => actions.tap(ids))}>Tap / Untap <kbd>T</kbd></button></li>
+        <li><button disabled={!has} onClick={() => actions.turnRight(ids)}>Turn 15° <kbd>Shift+Q/E</kbd></button></li>
+        <li><button disabled={!has} onClick={() => actions.bigger(ids)}>Bigger <kbd>+</kbd></button></li>
+        <li><button disabled={!has} onClick={() => actions.smaller(ids)}>Smaller <kbd>−</kbd></button></li>
         <li><button disabled={!has} className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete <kbd>Del</kbd></button></li>
         <li className="sep" />
         <li className="menu-head">Escape <kbd>Esc</kbd> deselects</li>
@@ -74,7 +77,7 @@ export function ContextMenu() {
   const many = ids.length > 1 ? ` (${ids.length})` : '';
   const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
   const stack = stackMembers(t.state, piece);
-  const height = 260 + (stack.length > 1 ? 140 : 0);
+  const height = 340 + (stack.length > 1 ? 140 : 0);
   const left = Math.min(menu.x, window.innerWidth - 220), topPx = Math.max(8, Math.min(menu.y, window.innerHeight - height));
 
   return (
@@ -93,6 +96,15 @@ export function ContextMenu() {
         <li><button onClick={run(() => actions.rotateLeft(ids))}>Rotate left{many} <kbd>Q</kbd></button></li>
         <li><button onClick={run(() => actions.rotateRight(ids))}>Rotate right{many} <kbd>E</kbd></button></li>
         <li><button onClick={run(() => actions.tap(ids))}>{piece.tapped ? 'Untap' : 'Tap'}{many} <kbd>T</kbd></button></li>
+        <li className="sep" />
+        <li className="menu-row">
+          <button onClick={() => actions.turnLeft(ids)} title="Shift+Q">↺ 15°</button>
+          <button onClick={() => actions.turnRight(ids)} title="Shift+E">↻ 15°</button>
+        </li>
+        <li className="menu-row">
+          <button onClick={() => actions.smaller(ids)} title="− key">− Smaller</button>
+          <button onClick={() => actions.bigger(ids)} title="+ key">＋ Bigger</button>
+        </li>
         <li className="sep" />
         <li><button onClick={run(() => actions.clone(menu.id))}>Clone</button></li>
         <li><button className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete{many} <kbd>Del</kbd></button></li>

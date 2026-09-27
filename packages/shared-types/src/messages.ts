@@ -10,7 +10,9 @@ export interface ClientMessages {
   dropMany: { items: { id: string; x: number; z: number }[] };
   stackAction: { id: string; action: StackAction };
   flip: { ids: string[] };
-  rotate: { ids: string[]; delta: 90 | -90 };
+  rotate: { ids: string[]; delta: 90 | -90 | 15 | -15 };
+  /** Scale pieces by a factor (0.5–2 per step), kept between 0.4" and 30" on the long side. */
+  resize: { ids: string[]; factor: number };
   tap: { ids: string[] };
   clone: { id: string };
   remove: { ids: string[] };

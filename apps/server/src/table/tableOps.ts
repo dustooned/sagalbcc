@@ -326,8 +326,24 @@ export function flip(ctx: TableContext, playerId: string, ids: string[]): OpResu
   if (res.ok) appendLog(ctx, `${nameOf(ctx, playerId)} flipped ${labels.length === 1 ? labels[0] : `${labels.length} cards`}.`);
   return res;
 }
+const ROTATE_STEPS = [90, -90, 15, -15];
+/** Smallest/largest a piece can be resized to, in inches (longer side). */
+const MIN_SIDE = 0.4, MAX_SIDE = 30;
+
+export function resize(ctx: TableContext, playerId: string, ids: string[], factor: unknown): OpResult {
+  const f = typeof factor === 'number' && Number.isFinite(factor) ? Math.min(2, Math.max(0.5, factor)) : 1;
+  if (f === 1) return fail();
+  return eachPiece(ctx, playerId, ids, piece => {
+    const long = Math.max(piece.w, piece.h);
+    const k = Math.min(MAX_SIDE / long, Math.max(MIN_SIDE / long, f));
+    piece.w *= k; piece.h *= k;
+    const pos = clampToTable(piece.x, piece.z, piece.w, piece.h);
+    piece.x = pos.x; piece.z = pos.z;
+  });
+}
+
 export function rotate(ctx: TableContext, playerId: string, ids: string[], delta: unknown): OpResult {
-  const d = delta === -90 ? -90 : 90;
+  const d = ROTATE_STEPS.includes(delta as number) ? (delta as number) : 90;
   return eachPiece(ctx, playerId, ids, piece => { piece.rotation = (((piece.rotation + d) % 360) + 360) % 360; });
 }
 export function tap(ctx: TableContext, playerId: string, ids: string[]): OpResult {
@@ -338,7 +354,7 @@ export function clone(ctx: TableContext, playerId: string, id: unknown): OpResul
   const piece = typeof id === 'string' ? ctx.state.pieces.get(id) : undefined;
   const face = piece && faceOf(piece);
   if (!piece || !face) return fail();
-  const copy = createPiece(ctx, { ownerId: playerId, face, x: piece.x + Math.min(piece.w, 1) * 0.3, z: piece.z + Math.min(piece.h, 1) * 0.3, rotation: piece.rotation, faceUp: piece.faceUp });
+  const copy = createPiece(ctx, { ownerId: playerId, face: { ...face, w: piece.w, h: piece.h }, x: piece.x + Math.min(piece.w, 1) * 0.3, z: piece.z + Math.min(piece.h, 1) * 0.3, rotation: piece.rotation, faceUp: piece.faceUp });
   appendLog(ctx, `${nameOf(ctx, playerId)} cloned ${labelOf(copy)}.`);
   return ok();
 }

@@ -26,8 +26,10 @@ function useTableKeys() {
       const ids = ui.targets(id => !!store.piece(id));
       switch (e.key.toLowerCase()) {
         case 'f': actions.flip(ids); break;
-        case 'q': actions.rotateLeft(ids); break;
-        case 'e': actions.rotateRight(ids); break;
+        case 'q': if (e.shiftKey) actions.turnLeft(ids); else actions.rotateLeft(ids); break;
+        case 'e': if (e.shiftKey) actions.turnRight(ids); else actions.rotateRight(ids); break;
+        case '=': case '+': actions.bigger(ids); break;
+        case '-': case '_': actions.smaller(ids); break;
         case 't': actions.tap(ids); break;
         case 'delete':
         case 'backspace':

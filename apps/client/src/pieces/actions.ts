@@ -7,6 +7,11 @@ export const actions = {
   /** Left = counter-clockwise as seen from your seat. */
   rotateLeft: (ids: string[]) => ids.length && store.send('rotate', { ids, delta: 90 }),
   rotateRight: (ids: string[]) => ids.length && store.send('rotate', { ids, delta: -90 }),
+  /** 15° steps — for 3D models and anything that shouldn't snap to quarter turns. */
+  turnLeft: (ids: string[]) => ids.length && store.send('rotate', { ids, delta: 15 }),
+  turnRight: (ids: string[]) => ids.length && store.send('rotate', { ids, delta: -15 }),
+  bigger: (ids: string[]) => ids.length && store.send('resize', { ids, factor: 1.2 }),
+  smaller: (ids: string[]) => ids.length && store.send('resize', { ids, factor: 1 / 1.2 }),
   tap: (ids: string[]) => ids.length && store.send('tap', { ids }),
   clone: (id: string) => store.send('clone', { id }),
   remove: (ids: string[]) => ids.length && store.send('remove', { ids }),
