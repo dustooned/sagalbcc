@@ -72,7 +72,7 @@ function isShaking(hist: Sample[]) {
  *  `onRoll` (dice only) fires repeatedly while the die is shaken in the hand, and once when it's
  *  thrown — a fast release. A thrown die keeps the hand's velocity, slides with friction,
  *  bounces off the rim and settles, Tabletop Simulator-style. */
-export function beginDrag(start: { clientX: number; clientY: number }, list: DragItem[], onClick?: () => void, onRoll?: () => void) {
+export function beginDrag(start: { clientX: number; clientY: number }, list: DragItem[], onClick?: () => void, onRoll?: () => void, throwable = !!onRoll) {
   const at = screenToTable(start.clientX, start.clientY);
   if (!at || !list.length) return;
   active++;
@@ -124,9 +124,9 @@ export function beginDrag(start: { clientX: number; clientY: number }, list: Dra
 
   const onUp = () => {
     stopListening();
-    const v = onRoll && moved ? releaseVelocity(hist) : null;
+    const v = throwable && moved ? releaseVelocity(hist) : null;
     if (v && v.screen > FLICK_PX_PER_MS) {
-      onRoll!();
+      onRoll?.();
       glide(v.x, v.z);
       return;
     }

@@ -440,6 +440,7 @@ export function rollMarker(ctx: TableContext, playerId: string, id: unknown): Op
   if (!m || !DIE_KIND_SET.has(m.kind as MarkerKind)) return fail();
   if (lockedByOther(m, playerId)) return fail(lockNotice(ctx, m, 'die'));
   m.value = 1 + ctx.randomInt(DIE_SIDES[m.kind as MarkerKind] ?? 6);
+  m.rolls = (m.rolls + 1) % 65535;
   appendLog(ctx, `${nameOf(ctx, playerId)} rolled a ${m.value}.`);
   return ok();
 }

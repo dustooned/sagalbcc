@@ -69,7 +69,7 @@ export function Tabletop() {
       ))}
       {[...state.markers.values()].map(m => {
         const rank = m.attachedTo ? rankOf.get(m.attachedTo) : undefined;
-        return <Marker3D key={m.id} id={m.id} kind={m.kind} label={m.label} value={m.value} pieceY={rank === undefined ? 0 : pieceBaseY(rank)} lockColor={lockColor(m.lockedBy)} />;
+        return <Marker3D key={m.id} id={m.id} kind={m.kind} label={m.label} value={m.value} rolls={m.rolls}pieceY={rank === undefined ? 0 : pieceBaseY(rank)} lockColor={lockColor(m.lockedBy)} />;
       })}
     </Canvas>
   );

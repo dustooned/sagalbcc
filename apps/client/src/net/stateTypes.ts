@@ -46,6 +46,7 @@ export interface SyncedMarker {
   ox: number;
   oz: number;
   order: number;
+  rolls: number;
 }
 
 export interface SyncedNote {

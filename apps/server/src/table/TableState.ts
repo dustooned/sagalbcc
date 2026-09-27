@@ -46,6 +46,8 @@ export const MarkerState = schema({
   ox: t.float32().default(0),
   oz: t.float32().default(0),
   order: t.uint32().default(0),
+  /** Bumped on every roll, so a die visibly tumbles even when it lands on the same number. */
+  rolls: t.uint16().default(0),
 }, 'Marker');
 export type MarkerState = SchemaType<typeof MarkerState>;
 

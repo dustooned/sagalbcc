@@ -66,6 +66,8 @@ export interface Marker3DProps {
   kind: SyncedMarker['kind'];
   label: string;
   value: number;
+  /** Server roll counter — changes on every roll, even one that lands on the same number. */
+  rolls: number;
   /** Resting height of the piece it rides on (0 when loose). */
   pieceY: number;
   lockColor: string | null;
@@ -85,12 +87,15 @@ function markerPos(id: string): Point2 | null {
 export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
   const group = useRef<THREE.Group>(null);
   const dieSpin = useRef<THREE.Group>(null);
-  // Never a real face value, so a freshly-mounted die (just spawned, or another player's die
-  // showing up for the first time on your screen) always tumbles in instead of snapping to place.
-  const lastValue = useRef(-1);
+  // Keyed on the roll counter as well as the value, so rolling the same number still tumbles.
+  // Starts empty, so a freshly-mounted die (just spawned, or another player's die showing up on
+  // your screen for the first time) tumbles in instead of snapping to place.
+  const lastRoll = useRef('');
+  const rollKey = `${p.rolls}:${p.value}`;
   const spinOffset = useRef(new THREE.Vector3());
   const rollStart = useRef(0);
   const tumbleQuat = useRef(new THREE.Quaternion());
+  const tumbleLeg = useRef(-1);
   const currentQuat = useRef(new THREE.Quaternion());
   const isBoxDie = BOX_DIE_KINDS.has(p.kind);
   const isPoly = POLY_KINDS.has(p.kind);
@@ -120,8 +125,8 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
       // A fresh roll: tumble a couple of extra full turns around a random axis before settling —
       // the target keeps those extra turns forever, so the exponential ease-toward-target below
       // reads as a spin, not a snap, with no separate animation state machine needed.
-      if (lastValue.current !== p.value) {
-        lastValue.current = p.value;
+      if (lastRoll.current !== rollKey) {
+        lastRoll.current = rollKey;
         const axis: 'x' | 'y' | 'z' = (['x', 'y', 'z'] as const)[Math.floor(Math.random() * 3)];
         spinOffset.current[axis] += (2 + Math.floor(Math.random() * 2)) * Math.PI * 2;
       }
@@ -135,16 +140,29 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
       // Quaternions can't "add extra turns" the way Euler angles can, so the tumble instead
       // slerps through one random orientation first, then on to the real settled orientation —
       // two legs read as one continuous tumble-and-land motion.
-      const TUMBLE_MS = 380;
-      if (lastValue.current !== p.value) {
-        lastValue.current = p.value;
+      // Several random orientations in a row, then land: reads as tumbling across the felt.
+      const LEG_MS = 150, LEGS = 3;
+      if (lastRoll.current !== rollKey) {
+        lastRoll.current = rollKey;
         rollStart.current = performance.now();
-        randomQuaternion(tumbleQuat.current);
       }
       const elapsed = performance.now() - rollStart.current;
-      const target = elapsed < TUMBLE_MS ? tumbleQuat.current : poly.quaternionFor(p.value);
-      currentQuat.current.slerp(target, 1 - Math.exp(-dt * (elapsed < TUMBLE_MS ? 9 : 5)));
+      const leg = Math.floor(elapsed / LEG_MS);
+      if (leg < LEGS && tumbleLeg.current !== leg) {
+        randomQuaternion(tumbleQuat.current);
+        tumbleLeg.current = leg;
+      }
+      if (leg >= LEGS) tumbleLeg.current = -1;
+      const tumbling = leg < LEGS;
+      const target = tumbling ? tumbleQuat.current : poly.quaternionFor(p.value);
+      currentQuat.current.slerp(target, 1 - Math.exp(-dt * (tumbling ? 14 : 6)));
       dieSpin.current.quaternion.copy(currentQuat.current);
+    } else if (dieSpin.current) {
+      // A flat token (+1, DMG, STATUS, custom): flips end over end like a coin while it's
+      // sliding from a throw, then lays back down face-up.
+      const r = dieSpin.current.rotation;
+      if (gliding.has(p.id)) r.x += dt * 16;
+      else r.x += (Math.round(r.x / (Math.PI * 2)) * Math.PI * 2 - r.x) * (1 - Math.exp(-dt * 10));
     }
   });
 
@@ -157,9 +175,10 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     if (!m || !pos) return;
     if (m.lockedBy && m.lockedBy !== store.playerId) { store.notify(`${store.state?.players.get(m.lockedBy)?.name ?? 'Someone'} is moving that marker.`); return; }
     // A die: a plain tap rolls it, shaking it while held rattles it, and a fast flick on
-    // release tosses and rolls it — same gesture for mouse and touch.
+    // release throws and rolls it. Any other token can be thrown too (it just flips, no roll).
+    // Same gestures for mouse and touch.
     const roll = isDie ? () => actions.rollMarker(p.id) : undefined;
-    beginDrag(e, [{ id: p.id, ...pos }], roll, roll);
+    beginDrag(e, [{ id: p.id, ...pos }], roll, roll, true);
   };
 
   const yaw = THREE.MathUtils.degToRad(seatAngle(store.me()?.seat ?? 0) + 90);
@@ -178,7 +197,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
 
   return (
     <group ref={group} rotation-y={yaw}>
-      {isDie ? <group ref={dieSpin}>{mesh}</group> : mesh}
+      <group ref={dieSpin}>{mesh}</group>
       {p.lockColor && (
         <mesh geometry={outline} rotation-x={-Math.PI / 2} position-y={-height / 2 + 0.001}>
           <meshBasicMaterial color={p.lockColor} />
