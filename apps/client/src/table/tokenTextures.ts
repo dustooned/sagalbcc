@@ -12,6 +12,7 @@ export const MARKER_COLORS: Record<SyncedMarker['kind'], string> = {
   diePips: '#fdf6e3',
   d4: '#fdf6e3',
   d8: '#fdf6e3',
+  d10: '#fdf6e3',
   d12: '#fdf6e3',
   d20: '#fdf6e3',
 };

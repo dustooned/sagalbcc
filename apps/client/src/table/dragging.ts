@@ -10,6 +10,8 @@ export const localDrag = new Map<string, Point2>();
 export const gliding = new Set<string>();
 
 let active = 0;
+/** A finger/mouse is currently holding something (a glide after release doesn't count). */
+let holdingNow = false;
 /** True while this player is holding something or it's still gliding from a throw. The camera
  *  ignores touch gestures meanwhile, so a second finger can't orbit the table mid-throw. */
 export const isDragging = () => active > 0;
@@ -68,14 +70,49 @@ function isShaking(hist: Sample[]) {
   return path > SHAKE_PATH_PX && reversals >= SHAKE_REVERSALS;
 }
 
-/** `onClick` fires instead of a drop when the pointer never moved past the slop (a plain tap).
- *  `onRoll` (dice only) fires repeatedly while the die is shaken in the hand, and once when it's
- *  thrown — a fast release. A thrown die keeps the hand's velocity, slides with friction,
- *  bounces off the rim and settles, Tabletop Simulator-style. */
-export function beginDrag(start: { clientX: number; clientY: number }, list: DragItem[], onClick?: () => void, onRoll?: () => void, throwable = !!onRoll) {
+export interface DragOptions {
+  /** Fires instead of a drop when the pointer never moved past the slop (a plain tap). */
+  onClick?: () => void;
+  /** Dice: fires repeatedly while shaken in the hand, and once when thrown. */
+  onRoll?: () => void;
+  /** A fast release keeps the hand's velocity: slides with friction, bounces off the rim and
+   *  settles, Tabletop Simulator-style. Defaults on for anything with onRoll. */
+  throwable?: boolean;
+  /** Touch: a second finger twisted around the holding finger. +1 = clockwise on screen. Fires
+   *  once per TWIST_STEP of twist. */
+  onTwist?: (dir: 1 | -1) => void;
+}
+
+/** 60° of finger twist per 90° card turn: a comfortable wrist motion, not a twitchy one. */
+const TWIST_STEP = Math.PI / 3;
+
+export function beginDrag(start: { clientX: number; clientY: number; pointerId?: number }, list: DragItem[], opts: DragOptions = {}) {
+  const { onClick, onRoll, onTwist, throwable = !!onRoll } = opts;
+  // One hold at a time: a second finger landing on the same piece must not start a nested drag.
+  // (A glide isn't a hold — you can grab the next die while the last one is still sliding.)
+  if (holdingNow) return;
   const at = screenToTable(start.clientX, start.clientY);
   if (!at || !list.length) return;
   active++;
+  holdingNow = true;
+  // Only the finger that grabbed it moves it. Another finger (a twist, or someone brushing the
+  // screen) must not yank the piece over to itself, and lifting it must not drop the piece.
+  const primary = start.pointerId;
+  const isPrimary = (ev: PointerEvent) => primary === undefined || ev.pointerId === primary;
+  let twist: { id: number; x: number; y: number; base: number } | null = null;
+  let primaryAt = { x: start.clientX, y: start.clientY };
+  const angle = () => (twist ? Math.atan2(twist.y - primaryAt.y, twist.x - primaryAt.x) : 0);
+  const stepTwist = () => {
+    if (!twist || !onTwist) return;
+    let d = angle() - twist.base;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    if (Math.abs(d) >= TWIST_STEP) { onTwist(d > 0 ? 1 : -1); twist.base = angle(); }
+  };
+  const onSecondDown = (ev: PointerEvent) => {
+    if (isPrimary(ev) || twist || !onTwist) return;
+    twist = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, base: 0 };
+    twist.base = angle();
+  };
   const offsets = list.map(i => ({ id: i.id, dx: i.x - at.x, dz: i.z - at.z, w: i.w, h: i.h }));
   const many = list.length > 1;
   for (const i of list) localDrag.set(i.id, { x: i.x, z: i.z });
@@ -91,6 +128,10 @@ export function beginDrag(start: { clientX: number; clientY: number }, list: Dra
   };
 
   const onMove = (ev: PointerEvent) => {
+    if (twist && ev.pointerId === twist.id) { twist.x = ev.clientX; twist.y = ev.clientY; stepTwist(); return; }
+    if (!isPrimary(ev)) return;
+    primaryAt = { x: ev.clientX, y: ev.clientY };
+    if (twist) { stepTwist(); return; } // twisting: the holding finger pivots, it doesn't drag
     if (!moved && Math.hypot(ev.clientX - start.clientX, ev.clientY - start.clientY) < CLICK_SLOP_PX) return;
     const p = screenToTable(ev.clientX, ev.clientY);
     if (!p) return;
@@ -116,14 +157,18 @@ export function beginDrag(start: { clientX: number; clientY: number }, list: Dra
   };
 
   const stopListening = () => {
+    window.removeEventListener('pointerdown', onSecondDown);
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onCancel);
     window.removeEventListener('blur', onCancel);
   };
 
-  const onUp = () => {
+  const onUp = (ev?: PointerEvent) => {
+    if (ev && twist && ev.pointerId === twist.id) { twist = null; return; }
+    if (ev && !isPrimary(ev)) return;
     stopListening();
+    holdingNow = false;
     const v = throwable && moved ? releaseVelocity(hist) : null;
     if (v && v.screen > FLICK_PX_PER_MS) {
       onRoll?.();
@@ -135,8 +180,13 @@ export function beginDrag(start: { clientX: number; clientY: number }, list: Dra
   };
 
   // Alt-Tab, a system dialog or a lost touch mid-drag: put things down where they are, so
-  // nobody is left looking at "Dustin is moving that" forever.
-  const onCancel = () => { stopListening(); finish(); };
+  // nobody is left looking at "Dustin is moving that" forever. A lost *second* finger only
+  // ends the twist.
+  const onCancel = (ev?: Event) => {
+    if (ev instanceof PointerEvent && twist && ev.pointerId === twist.id) { twist = null; return; }
+    if (ev instanceof PointerEvent && !isPrimary(ev)) return;
+    stopListening(); holdingNow = false; finish();
+  };
 
   const glide = (vx0: number, vz0: number) => {
     let vx = Math.min(Math.max(vx0, -MAX_GLIDE_SPEED), MAX_GLIDE_SPEED);
@@ -179,6 +229,7 @@ export function beginDrag(start: { clientX: number; clientY: number }, list: Dra
     next();
   };
 
+  window.addEventListener('pointerdown', onSecondDown);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onCancel);

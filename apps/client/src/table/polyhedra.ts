@@ -131,6 +131,41 @@ export function buildPolyhedronDie(base: THREE.BufferGeometry, sides: number, op
   };
 }
 
+/** A d10: a pentagonal trapezohedron — two apexes and a zig-zag ring of 10 vertices, making 10
+ * kite faces. Not a Platonic solid, so three.js doesn't ship it, but it IS centrally symmetric
+ * (every face has an opposite), so once built it goes through buildPolyhedronDie like the rest.
+ * For the kites to be flat, apex height h and ring offset e must satisfy
+ * h = e·(1 + cos36°)/(1 − cos36°) — derived from requiring each kite's 4 corners be coplanar. */
+export function trapezohedronGeometry(radius: number): THREE.BufferGeometry {
+  const c36 = Math.cos(Math.PI / 5);
+  const e = 0.105, h = (e * (1 + c36)) / (1 - c36);
+  const ring = Array.from({ length: 10 }, (_, i) => {
+    const a = (i * Math.PI) / 5;
+    return new THREE.Vector3(Math.cos(a), i % 2 === 0 ? e : -e, Math.sin(a));
+  });
+  const top = new THREE.Vector3(0, h, 0), bottom = new THREE.Vector3(0, -h, 0);
+  const tris: THREE.Vector3[][] = [];
+  const kite = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, d: THREE.Vector3) => { tris.push([a, b, c], [a, c, d]); };
+  for (let k = 0; k < 5; k++) {
+    const u0 = ring[2 * k], l0 = ring[2 * k + 1], u1 = ring[(2 * k + 2) % 10], l1 = ring[(2 * k + 3) % 10];
+    kite(top, u0, l0, u1);
+    kite(bottom, l0, u1, l1);
+  }
+  const scale = radius / Math.max(h, 1);
+  const pos: number[] = [];
+  const n = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3(), centroid = new THREE.Vector3();
+  for (let [a, b, c] of tris) {
+    // Wind every triangle outward, so face normals (and "which face is up") are right.
+    n.crossVectors(ab.subVectors(b, a), ac.subVectors(c, a));
+    centroid.copy(a).add(b).add(c);
+    if (n.dot(centroid) < 0) [b, c] = [c, b];
+    for (const v of [a, b, c]) pos.push(v.x * scale, v.y * scale, v.z * scale);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  return geo;
+}
+
 /** Shoemake's uniform-random-rotation algorithm — an unbiased random orientation, used for the
  * mid-roll tumble (quaternions can't just "add extra turns" the way Euler angles can). */
 export function randomQuaternion(target: THREE.Quaternion): THREE.Quaternion {

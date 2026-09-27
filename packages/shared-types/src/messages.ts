@@ -39,11 +39,11 @@ export interface ServerMessages {
 }
 
 export type StackAction = 'shuffle' | 'flip' | 'spread';
-export type MarkerKind = 'plus' | 'minus' | 'damage' | 'status' | 'custom' | 'die' | 'diePips' | 'd4' | 'd8' | 'd12' | 'd20';
+export type MarkerKind = 'plus' | 'minus' | 'damage' | 'status' | 'custom' | 'die' | 'diePips' | 'd4' | 'd8' | 'd10' | 'd12' | 'd20';
 /** Every marker kind that's actually a die — a tap/rollMarker re-rolls it. */
-export const DIE_KINDS: readonly MarkerKind[] = ['die', 'diePips', 'd4', 'd8', 'd12', 'd20'];
+export const DIE_KINDS: readonly MarkerKind[] = ['die', 'diePips', 'd4', 'd8', 'd10', 'd12', 'd20'];
 /** How many sides each die kind has (6 for the two d6 variants). */
-export const DIE_SIDES: Partial<Record<MarkerKind, number>> = { die: 6, diePips: 6, d4: 4, d8: 8, d12: 12, d20: 20 };
+export const DIE_SIDES: Partial<Record<MarkerKind, number>> = { die: 6, diePips: 6, d4: 4, d8: 8, d10: 10, d12: 12, d20: 20 };
 
 /** Options sent with create/join. */
 export interface JoinOptions {

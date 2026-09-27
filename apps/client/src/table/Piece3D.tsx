@@ -115,7 +115,12 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
     const group = ui.selected.size > 1
       ? [...ui.selected].map(id => store.piece(id)).filter((c): c is NonNullable<typeof c> => !!c && (!c.lockedBy || c.lockedBy === store.playerId))
       : [piece];
-    beginDrag(e, group.map(c => ({ id: c.id, x: c.x, z: c.z, w: c.w, h: c.h })));
+    const ids = group.map(c => c.id);
+    // Touch: hold it with one finger and twist a second finger around it to turn it — each
+    // quarter-twist is one 90° turn, same as Q/E.
+    beginDrag(e, group.map(c => ({ id: c.id, x: c.x, z: c.z, w: c.w, h: c.h })), {
+      onTwist: dir => (dir > 0 ? actions.rotateRight(ids) : actions.rotateLeft(ids)),
+    });
   };
 
   const outlineColor = p.selected ? '#ffd24a' : p.lockColor;

@@ -393,7 +393,7 @@ export function loadKit(ctx: TableContext, playerId: string, kit: NormalizedKit,
 
 // ---------------------------------------------------------------- markers & notes
 
-export const MARKER_KINDS = ['plus', 'minus', 'damage', 'status', 'custom', 'die', 'diePips', 'd4', 'd8', 'd12', 'd20'] as const;
+export const MARKER_KINDS = ['plus', 'minus', 'damage', 'status', 'custom', 'die', 'diePips', 'd4', 'd8', 'd10', 'd12', 'd20'] as const;
 const DIE_KIND_SET = new Set<MarkerKind>(DIE_KINDS);
 const MARKER_DEFAULTS: Record<(typeof MARKER_KINDS)[number], { label: string; value: number }> = {
   plus: { label: '+', value: 1 },
@@ -405,6 +405,7 @@ const MARKER_DEFAULTS: Record<(typeof MARKER_KINDS)[number], { label: string; va
   diePips: { label: 'DIE', value: 1 },
   d4: { label: 'D4', value: 1 },
   d8: { label: 'D8', value: 1 },
+  d10: { label: 'D10', value: 1 },
   d12: { label: 'D12', value: 1 },
   d20: { label: 'D20', value: 1 },
 };
