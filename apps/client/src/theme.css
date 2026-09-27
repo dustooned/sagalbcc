@@ -70,9 +70,10 @@ kbd { margin-left: auto; font: 11px var(--font); color: var(--muted); border: 1p
 .hud.tr { top: 12px; right: 12px; justify-items: end; }
 .hud.bl { bottom: 12px; left: 12px; }
 .hud.cc { top: 50%; left: 50%; transform: translate(-50%, -50%); }
-.empty-table { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 18px 22px; max-width: 360px; }
+.empty-table { position: relative; display: grid; gap: 10px; justify-items: center; text-align: center; padding: 18px 22px; max-width: 360px; }
 .empty-table h2 { margin: 0; font-size: 18px; }
 .empty-table p { margin: 0; }
+.empty-table-close { position: absolute; top: 6px; right: 8px; }
 .drop-overlay { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; background: rgba(0, 0, 0, 0.6); border: 4px dashed var(--accent); pointer-events: none; font-size: 22px; font-weight: 800; }
 
 /* One tap to clear every panel off the table — most useful on a small screen. */

@@ -1,6 +1,7 @@
 // The table: 3D pieces fill the screen, small HUD panels sit in the corners.
 import { useEffect, useState } from 'react';
 import { actions } from '../pieces/actions.ts';
+import { addImageFile } from '../pieces/loadImage.ts';
 import { loadKitFile } from '../pieces/loadKit.ts';
 import { showRoomInAddressBar } from '../net/invite.ts';
 import { store, useTable } from '../net/tableStore.ts';
@@ -42,7 +43,7 @@ function useTableKeys() {
   }, []);
 }
 
-/** Drop a .kittable.json anywhere on the page to load it. */
+/** Drop a .kittable.json, or a plain image, anywhere on the page to load it. */
 function useKitDrop() {
   const [over, setOver] = useState(false);
   useEffect(() => {
@@ -56,7 +57,8 @@ function useKitDrop() {
       const file = e.dataTransfer?.files[0];
       if (!file) return;
       if (/\.json$/i.test(file.name)) void loadKitFile(file);
-      else store.notify('Drop the .kittable.json from Kit Forge’s “Send to Table” — for a table image, use 🎨 Table look.');
+      else if (file.type.startsWith('image/')) void addImageFile(file);
+      else store.notify('Drop a .kittable.json from Kit Forge, or a PNG/JPG/WebP image.');
     };
     window.addEventListener('dragover', onOver);
     window.addEventListener('dragleave', onLeave);
@@ -99,7 +101,7 @@ export function TableScreen() {
       >
         {hudHidden ? '☰' : '✕'}
       </button>
-      {dropping && <div className="drop-overlay">Drop your kit to load it onto the table</div>}
+      {dropping && <div className="drop-overlay">Drop your kit or an image to add it to the table</div>}
     </main>
   );
 }
