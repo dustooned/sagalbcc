@@ -3,7 +3,7 @@
 // failed upload — the server then re-checks it independently before storing it.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MODEL_LIMITS, modelProblems, type ModelProblem, type NormalizedKit, type PieceDefinition } from '@kitforge/shared-types';
+import { MODEL_LIMITS, UNSUPPORTED_GLTF_EXTENSIONS, modelProblems, type ModelProblem, type NormalizedKit, type PieceDefinition } from '@kitforge/shared-types';
 import { uploadModel } from '../net/api.ts';
 import { store } from '../net/tableStore.ts';
 import { actions } from './actions.ts';
@@ -11,17 +11,19 @@ import { actions } from './actions.ts';
 /** A dropped model lands at a sensible size: its larger footprint side this many inches. */
 const TARGET_SIDE_INCHES = 3;
 
-/** Does the glTF JSON point at files outside this one? (The loader would just fail to fetch them,
- *  with an error a student can't act on.) */
-function referencesExternalFiles(buf: ArrayBuffer): boolean {
+/** Problems visible in the glTF JSON — external files or Draco compression — that the loader would
+ *  otherwise report as an error a student can't act on. */
+function jsonProblem(buf: ArrayBuffer): ModelProblem | null {
   const view = new DataView(buf);
-  if (buf.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67) return false;
+  if (buf.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67) return null;
   const len = view.getUint32(12, true);
   try {
-    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, len))) as { buffers?: { uri?: string }[]; images?: { uri?: string }[] };
+    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, len))) as { buffers?: { uri?: string }[]; images?: { uri?: string }[]; extensionsRequired?: string[] };
+    if ((json.extensionsRequired ?? []).some(x => UNSUPPORTED_GLTF_EXTENSIONS.includes(x))) return modelProblems.compressed();
     const external = (u?: string) => u !== undefined && !u.startsWith('data:');
-    return (json.buffers ?? []).some(b => external(b.uri)) || (json.images ?? []).some(i => external(i.uri));
-  } catch { return false; }
+    if ((json.buffers ?? []).some(b => external(b.uri)) || (json.images ?? []).some(i => external(i.uri))) return modelProblems.externalFiles();
+  } catch { /* the loader below reports it */ }
+  return null;
 }
 
 async function inspect(file: File): Promise<{ problem: ModelProblem } | { footprint: { w: number; h: number } }> {
@@ -29,7 +31,8 @@ async function inspect(file: File): Promise<{ problem: ModelProblem } | { footpr
   const mb = file.size / 1024 / 1024;
   if (mb > MODEL_LIMITS.maxMB) return { problem: modelProblems.tooBig(mb) };
   const buf = await file.arrayBuffer();
-  if (referencesExternalFiles(buf)) return { problem: modelProblems.externalFiles() };
+  const early = jsonProblem(buf);
+  if (early) return { problem: early };
 
   let scene: THREE.Object3D;
   try { scene = (await new GLTFLoader().parseAsync(buf, '')).scene; } catch { return { problem: modelProblems.unreadable() }; }

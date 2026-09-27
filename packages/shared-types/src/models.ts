@@ -17,7 +17,26 @@ export interface ModelProblem {
   fix: string;
 }
 
-const EXPORT_STEPS = 'In Blender: File → Export → glTF 2.0 (.glb/.gltf). On the right, set Format to "glTF Binary (.glb)", then Export. Load that .glb file here.';
+const EXPORT_STEPS = 'In Blender: File → Export → glTF 2.0 (.glb/.gltf). On the right, set Format to "glTF Binary (.glb)", tick Include → Selected Objects and Data → Mesh → Apply Modifiers, leave Compression off, then Export. Load that .glb file here.';
+
+/** glTF extensions that pack meshes in a way this table's loader doesn't decode. */
+export const UNSUPPORTED_GLTF_EXTENSIONS = ['KHR_draco_mesh_compression', 'EXT_meshopt_compression'];
+
+/** The export checklist shown from the ⓘ next to "Add 3D model". */
+export const BLENDER_EXPORT_HELP: ModelProblem = {
+  error: 'Exporting a 3D model from Blender',
+  fix: [
+    'Before exporting: select only your model, then Ctrl+A → All Transforms.',
+    'File → Export → glTF 2.0, then set:',
+    '• Format: glTF Binary (.glb)',
+    '• Include: ☑ Selected Objects',
+    '• Data → Mesh: ☑ Apply Modifiers',
+    '• Data → Compression: OFF',
+    '• Animation: OFF',
+    'Limits: 15 MB · 100,000 triangles · textures up to 4096 px (2048 is better).',
+    'Size and position don’t matter: the table scales it to about 3 inches.',
+  ].join('\n'),
+};
 
 export const modelProblems = {
   wrongFormat: (name: string): ModelProblem => ({
@@ -39,6 +58,10 @@ export const modelProblems = {
   externalFiles: (): ModelProblem => ({
     error: 'This model points to separate texture or data files.',
     fix: `Only a single self-contained file can be shared with the table. ${EXPORT_STEPS} "glTF Binary" packs everything into one file.`,
+  }),
+  compressed: (): ModelProblem => ({
+    error: 'This model uses mesh compression (Draco), which the table can’t read.',
+    fix: `Re-export with compression turned off: in the glTF export panel, open Data → Compression and untick it. ${EXPORT_STEPS}`,
   }),
   unreadable: (): ModelProblem => ({
     error: 'That file couldn\'t be read as a 3D model.',

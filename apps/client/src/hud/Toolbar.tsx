@@ -1,6 +1,7 @@
 // 🧰 Table tools: load a Kit Forge export, drop markers/notes, host-only clear. Collapsible so
 // it never covers the table.
 import { useState } from 'react';
+import { BLENDER_EXPORT_HELP } from '@kitforge/shared-types';
 import { actions } from '../pieces/actions.ts';
 import { pickImageFile } from '../pieces/loadImage.ts';
 import { pickModelFile } from '../pieces/loadModel.ts';
@@ -22,6 +23,7 @@ export function Toolbar() {
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickKitFile}>{t.kitProgress ?? '📦 Load kit…'}</button>
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickImageFile}>🖼️ Add image…</button>
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickModelFile} title="A .glb exported from Blender">🧊 Add 3D model…</button>
+            <button className="btn small ghost" onClick={() => t.showHelp(BLENDER_EXPORT_HELP)} title="Blender export settings" aria-label="Blender export settings">ⓘ</button>
             <a className="btn small ghost" href="https://dustooned.github.io/kitb/" target="_blank" rel="noreferrer">🛠️ Kit Forge</a>
             <a className="btn small ghost" href="/manual.html" target="_blank" rel="noreferrer">📖 Manual</a>
           </div>

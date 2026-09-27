@@ -25,7 +25,7 @@ a{color:var(--accent)}
 <body>
 <header><h1>🎲 SAGA Manual</h1><p>A live 3D playtest table for your group. Runs in the browser on PCs, tablets and phones.</p></header>
 <main>
-<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#dice">Dice &amp; markers</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
+<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#dice">Dice &amp; markers</a><a href="#formats">File formats</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
 
 <section id="start"><h2>Quick start</h2>
 <ol>
@@ -41,7 +41,7 @@ a{color:var(--accent)}
 <table>
 <tr><td><b>📦 Load kit…</b></td><td>A <code>.kittable.json</code> from Kit Forge's <b>Send to Table</b> or Export ZIP.</td></tr>
 <tr><td><b>🖼️ Add image…</b></td><td>Any PNG/JPG/WebP becomes a piece. Fastest way to test one idea.</td></tr>
-<tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code> from Blender. See <a href="#models">3D models</a>.</td></tr>
+<tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code> from Blender. See <a href="#formats">File formats</a><a href="#models">3D models</a>.</td></tr>
 <tr><td><b>Markers &amp; notes</b></td><td>+1, −1, DMG, STATUS, custom labels, notes, and dice.</td></tr>
 <tr><td><b>Drag &amp; drop</b></td><td>Drop any of the files above anywhere on the page.</td></tr>
 </table>
@@ -83,17 +83,39 @@ a{color:var(--accent)}
 <p>DMG, STATUS and custom tokens can be thrown too — they flip like a coin.</p>
 </section>
 
+<section id="formats"><h2>File formats</h2>
+<table>
+<tr><th>What</th><th>Use</th><th>Not accepted</th></tr>
+<tr><td>Kits</td><td><code>.kittable.json</code> (Kit Forge → Send to Table, or inside its Export ZIP)</td><td>The <code>.zip</code> itself — unzip it first</td></tr>
+<tr><td>Images</td><td>PNG, JPG, WebP (up to 8 MB)</td><td>PSD, PDF, SVG — make those in Kit Forge instead</td></tr>
+<tr><td>3D models</td><td><code>.glb</code> (glTF Binary)</td><td>.blend, .gltf, .fbx, .obj, .stl, .dae, .usdz — export them as .glb</td></tr>
+</table>
+</section>
+
 <section id="models"><h2>3D models from Blender</h2>
+<p>In SAGA, the <b>ⓘ</b> next to <b>🧊 Add 3D model…</b> shows these settings too.</p>
+<h3>Before exporting</h3>
 <ol>
-<li>In Blender: <b>File → Export → glTF 2.0</b>.</li>
-<li>Set <b>Format</b> to <b>glTF Binary (.glb)</b> — one file with textures inside.</li>
-<li>Drop the <code>.glb</code> onto the table.</li>
+<li>Select only your model (no lights or camera).</li>
+<li>Press <kbd>Ctrl</kbd>+<kbd>A</kbd> → <b>All Transforms</b>.</li>
+<li>Check the triangle count: <b>Overlays → Statistics</b>.</li>
 </ol>
+<h3>Export: File → Export → glTF 2.0</h3>
+<table>
+<tr><th>Setting</th><th>Set to</th></tr>
+<tr><td>Format</td><td><b>glTF Binary (.glb)</b> — one file with textures inside</td></tr>
+<tr><td>Include</td><td>☑ <b>Selected Objects</b></td></tr>
+<tr><td>Data → Mesh</td><td>☑ <b>Apply Modifiers</b></td></tr>
+<tr><td>Data → Compression</td><td>☐ <b>Off</b> (SAGA can't read Draco)</td></tr>
+<tr><td>Animation</td><td>☐ <b>Off</b></td></tr>
+</table>
+<p>Size and position don't matter: SAGA scales the model to about 3 inches and sets it on the table.</p>
+<h3>Limits</h3>
 <table>
 <tr><th>Limit</th><th>If you're over</th></tr>
-<tr><td>15 MB file</td><td>Shrink textures, apply a Decimate modifier.</td></tr>
-<tr><td>100,000 triangles</td><td>Decimate modifier (ratio 0.3–0.5).</td></tr>
-<tr><td>4096 px textures</td><td>Resize images to 2048 or less.</td></tr>
+<tr><td>15 MB file</td><td>Resize textures (Image Editor → Image → Resize to 1024 or 2048).</td></tr>
+<tr><td>100,000 triangles</td><td>Add a Decimate modifier (ratio 0.3–0.5), apply, re-export.</td></tr>
+<tr><td>4096 px textures</td><td>Resize to 2048 or less.</td></tr>
 </table>
 <p>If a model fails, SAGA shows the exact problem and the Blender steps to fix it.</p>
 </section>

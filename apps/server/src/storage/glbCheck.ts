@@ -1,9 +1,10 @@
 // Server-side check of an uploaded glTF binary (.glb) before it's stored and shared with the
 // table. The browser already pre-checks with a real 3D loader for instant feedback; this is the
 // guarantee for anyone who skips it. Reads the file's own structure only — no 3D library.
-import { MODEL_LIMITS, modelProblems, type ModelProblem } from '@kitforge/shared-types';
+import { MODEL_LIMITS, UNSUPPORTED_GLTF_EXTENSIONS, modelProblems, type ModelProblem } from '@kitforge/shared-types';
 
 interface Gltf {
+  extensionsRequired?: string[];
   buffers?: { uri?: string; byteLength?: number }[];
   bufferViews?: { buffer: number; byteOffset?: number; byteLength: number }[];
   images?: { uri?: string; bufferView?: number; mimeType?: string }[];
@@ -49,6 +50,7 @@ export function checkGlb(buf: Buffer): ModelProblem | null {
   }
   if (!gltf) return modelProblems.unreadable();
 
+  if ((gltf.extensionsRequired ?? []).some(x => UNSUPPORTED_GLTF_EXTENSIONS.includes(x))) return modelProblems.compressed();
   // Everything must live inside this one file — no references to other files or URLs.
   const external = (uri?: string) => uri !== undefined && !uri.startsWith('data:');
   if ((gltf.buffers ?? []).some(b => external(b.uri)) || (gltf.images ?? []).some(i => external(i.uri))) return modelProblems.externalFiles();
