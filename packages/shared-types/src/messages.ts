@@ -23,7 +23,7 @@ export interface ClientMessages {
   addNote: { text: string; x?: number; z?: number };
   editNote: { id: string; text: string };
   resetTable: Record<string, never>;
-  /** Shared table surface: felt color and/or an uploaded /assets/... image ('' removes it). */
+  /** Shared table surface: felt color and/or an uploaded /uploads/... image ('' removes it). */
   setTableLook: { felt?: string; image?: string };
   kick: { playerId: string };
   ping: { t: number };

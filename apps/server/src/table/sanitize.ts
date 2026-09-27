@@ -21,7 +21,7 @@ export function cleanIds(v: unknown, max = 80): string[] {
 }
 
 /** Only images this server hosts may be used as piece faces (no arbitrary external URLs). */
-const SAFE_IMAGE = /^\/assets\/[\w-]{1,100}\.(png|jpe?g|webp)$/i;
+const SAFE_IMAGE = /^\/uploads\/[\w-]{1,100}\.(png|jpe?g|webp)$/i;
 export function cleanImageUrl(v: unknown): string {
   return typeof v === 'string' && SAFE_IMAGE.test(v) && !v.includes('..') ? v : '';
 }

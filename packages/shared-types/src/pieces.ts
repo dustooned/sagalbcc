@@ -8,7 +8,7 @@ export interface PieceDefinition {
   id: string;
   name: string;
   kind: PieceKind;
-  /** Server-relative URL (/assets/...) or a data: URL before upload. Empty = generated placeholder. */
+  /** Server-relative URL (/uploads/...) or a data: URL before upload. Empty = generated placeholder. */
   frontImage: string;
   backImage?: string;
   /** Physical size in inches — matches the table's 1-unit-per-inch scale directly. */

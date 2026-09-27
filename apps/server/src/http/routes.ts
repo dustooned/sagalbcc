@@ -19,7 +19,7 @@ export function installRoutes(app: Application, { config, storage }: Services) {
 
   // Token auth (no cookies), so a permissive CORS policy doesn't expose anything. It lets the
   // Vite dev client on another port call the API and load images into WebGL textures.
-  app.use(['/api', '/assets'], (req, res, next) => {
+  app.use(['/api', '/uploads'], (req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -50,11 +50,12 @@ export function installRoutes(app: Application, { config, storage }: Services) {
       const type = sniffImageType(body);
       if (!type) { res.status(415).json({ error: 'Only PNG, JPG or WebP images can be imported.' }); return; }
       const saved = await storage.save(body, { type });
-      res.status(201).json({ assetUrl: `/assets/${saved.id}` } satisfies UploadResponse);
+      res.status(201).json({ assetUrl: `/uploads/${saved.id}` } satisfies UploadResponse);
     });
 
-  // Uploaded images: opaque random ids, served with their sniffed type only.
-  app.get('/assets/:id', async (req, res) => {
+  // Uploaded images: opaque random ids, served with their sniffed type only. Namespaced under
+  // /uploads (not /assets) so it can't shadow the built client's own /assets/*.js and *.css.
+  app.get('/uploads/:id', async (req, res) => {
     const asset = await storage.get(String(req.params.id));
     if (!asset?.data) { res.sendStatus(404); return; }
     res.setHeader('Content-Type', MIME[asset.type]);

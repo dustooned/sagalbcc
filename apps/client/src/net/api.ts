@@ -40,7 +40,7 @@ export async function uploadImage(file: Blob) {
   return request<UploadResponse>('/api/upload', { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
 }
 
-/** A data: URL from a Kit Forge export, uploaded so it gets a real /assets/... URL the table can share. */
+/** A data: URL from a Kit Forge export, uploaded so it gets a real /uploads/... URL the table can share. */
 export async function uploadDataUrl(dataUrl: string): Promise<string> {
   const blob = await (await fetch(dataUrl)).blob();
   return (await uploadImage(blob)).assetUrl;

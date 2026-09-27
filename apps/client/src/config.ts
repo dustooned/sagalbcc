@@ -13,7 +13,7 @@ function serverUrl() {
 }
 export const SERVER_URL = serverUrl();
 
-/** Turns a server-relative image path (/assets/...) into a loadable URL, or passes a data: URL through. */
+/** Turns a server-relative image path (/uploads/...) into a loadable URL, or passes a data: URL through. */
 export function assetUrl(path: string) {
   if (!path) return '';
   return path.startsWith('data:') ? path : `${SERVER_URL}${path}`;

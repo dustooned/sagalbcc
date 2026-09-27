@@ -132,7 +132,7 @@ export class TableRoom extends Room<{ state: TableState }> {
     this.on('resetTable', pid => ops.clearTable(c, pid));
     this.on('setTableLook', async (pid, m) => {
       if (typeof m.image === 'string' && m.image !== '') {
-        const id = m.image.startsWith('/assets/') ? m.image.slice(8) : '';
+        const id = m.image.startsWith('/uploads/') ? m.image.slice(9) : '';
         if (!ASSET_ID.test(id) || !(await services().storage.get(id))) return { ok: false, notice: 'That image was not found on the server.' };
       }
       return ops.setTableLook(c, pid, m);
