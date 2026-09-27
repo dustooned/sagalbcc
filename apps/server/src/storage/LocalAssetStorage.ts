@@ -3,7 +3,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { ASSET_ID, type AssetMetadata, type AssetStorage, type ImageType, type StoredAsset } from './AssetStorage.ts';
+import { ASSET_ID, type AssetMetadata, type AssetStorage, type AssetType, type StoredAsset } from './AssetStorage.ts';
 
 export class LocalAssetStorage implements AssetStorage {
   constructor(private dir: string) {}
@@ -19,7 +19,7 @@ export class LocalAssetStorage implements AssetStorage {
     if (!ASSET_ID.test(id)) return null;
     try {
       const data = await fs.readFile(path.join(this.dir, id));
-      return { id, type: id.split('.').pop() as ImageType, size: data.length, data };
+      return { id, type: id.split('.').pop() as AssetType, size: data.length, data };
     } catch {
       return null;
     }

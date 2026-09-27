@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { actions } from '../pieces/actions.ts';
 import { pickImageFile } from '../pieces/loadImage.ts';
+import { pickModelFile } from '../pieces/loadModel.ts';
 import { pickKitFile } from '../pieces/loadKit.ts';
 import { useTable } from '../net/tableStore.ts';
 
@@ -20,6 +21,7 @@ export function Toolbar() {
           <div className="row wrap">
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickKitFile}>{t.kitProgress ?? '📦 Load kit…'}</button>
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickImageFile}>🖼️ Add image…</button>
+            <button className="btn small" disabled={!!t.kitProgress} onClick={pickModelFile} title="A .glb exported from Blender">🧊 Add 3D model…</button>
             <a className="btn small ghost" href="https://dustooned.github.io/kitb/" target="_blank" rel="noreferrer">🛠️ Kit Forge</a>
           </div>
           <div className="field"><span>MARKERS &amp; NOTES</span></div>

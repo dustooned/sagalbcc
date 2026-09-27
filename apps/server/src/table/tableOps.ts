@@ -375,6 +375,7 @@ export function loadKit(ctx: TableContext, playerId: string, kit: NormalizedKit,
   for (const def of queue) {
     const face: PieceFace = { pieceId: def.id, kind: def.kind, name: def.name, frontImage: def.frontImage, w: def.w, h: def.h };
     if (def.backImage) face.backImage = def.backImage;
+    if (def.model) face.model = def.model;
     if (def.metadata) face.metadata = def.metadata;
     let x: number, z: number;
     if (def.kind === 'board') { x = boardI * 0.6; z = boardI * 0.6; boardI++; }

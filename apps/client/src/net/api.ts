@@ -17,7 +17,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       session.clearToken();
       window.dispatchEvent(new Event(SESSION_EXPIRED));
     }
-    throw new Error((body as { error?: string }).error ?? `Request failed (${res.status}).`);
+    const { error, fix } = body as { error?: string; fix?: string };
+    throw Object.assign(new Error(error ?? `Request failed (${res.status}).`), { fix });
   }
   return body as T;
 }
@@ -38,6 +39,12 @@ export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 export async function uploadImage(file: Blob) {
   if (file.size > MAX_UPLOAD_BYTES) throw new Error('That image is over 8 MB.');
   return request<UploadResponse>('/api/upload', { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+}
+
+/** A .glb 3D model. The server re-checks it (size, triangles, textures, no external files); a
+ *  rejection's error carries a `fix` explaining how to correct it in Blender. */
+export async function uploadModel(file: Blob) {
+  return request<UploadResponse>('/api/upload', { method: 'POST', headers: { 'Content-Type': 'model/gltf-binary' }, body: file });
 }
 
 /** A data: URL from a Kit Forge export, uploaded so it gets a real /uploads/... URL the table can share. */

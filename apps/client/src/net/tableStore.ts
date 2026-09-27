@@ -16,6 +16,10 @@ class TableStore {
   version = 0;
   /** Progress text while a kit file is being read/uploaded, or null when idle. */
   kitProgress: string | null = null;
+  /** A problem that needs more than a toast — what went wrong and how to fix it. */
+  help: { error: string; fix: string } | null = null;
+
+  showHelp(help: { error: string; fix: string } | null) { this.help = help; this.bump(); }
 
   private listeners = new Set<() => void>();
   private frame = 0;

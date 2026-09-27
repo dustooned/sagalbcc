@@ -2,16 +2,18 @@
 // S3 / Cloudflare R2 / Supabase Storage without touching the room or HTTP code.
 
 export type ImageType = 'png' | 'jpg' | 'webp';
+/** Everything storable: images, plus 3D models as single-file glTF binaries. */
+export type AssetType = ImageType | 'glb';
 
 export interface AssetMetadata {
-  type: ImageType;
+  type: AssetType;
   originalName?: string;
 }
 
 export interface StoredAsset {
   /** Opaque, unguessable file id, e.g. "Xb3k...Q.png". */
   id: string;
-  type: ImageType;
+  type: AssetType;
   size: number;
   data?: Buffer;
 }
@@ -22,7 +24,10 @@ export interface AssetStorage {
   delete?(id: string): Promise<void>;
 }
 
-export const MIME: Record<ImageType, string> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' };
+export const MIME: Record<AssetType, string> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', glb: 'model/gltf-binary' };
+
+/** A glTF binary starts with the ASCII magic "glTF". */
+export const isGlb = (buf: Buffer) => buf.length >= 12 && buf.toString('latin1', 0, 4) === 'glTF';
 
 /** Identify an image by its actual bytes, never by the name or Content-Type the client claims. */
 export function sniffImageType(buf: Buffer): ImageType | null {
@@ -32,4 +37,4 @@ export function sniffImageType(buf: Buffer): ImageType | null {
   return null;
 }
 
-export const ASSET_ID = /^[A-Za-z0-9_-]{22}\.(png|jpg|webp)$/;
+export const ASSET_ID = /^[A-Za-z0-9_-]{22}\.(png|jpg|webp|glb)$/;

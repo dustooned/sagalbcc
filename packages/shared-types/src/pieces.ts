@@ -11,6 +11,8 @@ export interface PieceDefinition {
   /** Server-relative URL (/uploads/...) or a data: URL before upload. Empty = generated placeholder. */
   frontImage: string;
   backImage?: string;
+  /** Server-relative URL (/uploads/....glb) of a 3D model — drawn instead of a flat card/tile. */
+  model?: string;
   /** Physical size in inches — matches the table's 1-unit-per-inch scale directly. */
   w: number;
   h: number;
@@ -32,6 +34,7 @@ export interface PieceFace {
   kind: PieceKind;
   frontImage: string;
   backImage?: string;
+  model?: string;
   w: number;
   h: number;
   metadata?: Record<string, unknown>;

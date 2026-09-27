@@ -25,6 +25,11 @@ const SAFE_IMAGE = /^\/uploads\/[\w-]{1,100}\.(png|jpe?g|webp)$/i;
 export function cleanImageUrl(v: unknown): string {
   return typeof v === 'string' && SAFE_IMAGE.test(v) && !v.includes('..') ? v : '';
 }
+/** Same rule for 3D models: only .glb files this server itself stored (and checked). */
+const SAFE_MODEL = /^\/uploads\/[\w-]{1,100}\.glb$/;
+export function cleanModelUrl(v: unknown): string {
+  return typeof v === 'string' && SAFE_MODEL.test(v) ? v : '';
+}
 
 export function cleanMetadata(v: unknown): Record<string, unknown> | undefined {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return undefined;
@@ -48,6 +53,8 @@ export function sanitizeDefinition(raw: unknown): PieceDefinition | null {
   const def: PieceDefinition = { id, kind, name: cleanText(r.name, 60) || id, frontImage: cleanImageUrl(r.frontImage), w: size(r.w, 1), h: size(r.h, 1) };
   const backImage = cleanImageUrl(r.backImage);
   if (backImage) def.backImage = backImage;
+  const model = cleanModelUrl(r.model);
+  if (model) def.model = model;
   const metadata = cleanMetadata(r.metadata);
   if (metadata) def.metadata = metadata;
   return def;
@@ -64,6 +71,8 @@ export function sanitizeFace(raw: unknown): PieceFace | null {
   const face: PieceFace = { pieceId, kind, name: cleanText(r.name, 60) || pieceId, frontImage: cleanImageUrl(r.frontImage), w: size(r.w, 1), h: size(r.h, 1) };
   const backImage = cleanImageUrl(r.backImage);
   if (backImage) face.backImage = backImage;
+  const model = cleanModelUrl(r.model);
+  if (model) face.model = model;
   const metadata = cleanMetadata(r.metadata);
   if (metadata) face.metadata = metadata;
   return face;

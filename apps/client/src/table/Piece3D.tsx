@@ -1,9 +1,11 @@
 // One physical piece on the table (card, token/piece, or board): a thin box, front on top, back
 // underneath. Position comes live from synced state every frame (smoothed), except while *you*
 // are dragging it.
-import { memo, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { assetUrl } from '../config.ts';
 import { PIECE_THICKNESS, type PieceKind } from '@kitforge/shared-types';
 import { store } from '../net/tableStore.ts';
 import { actions } from '../pieces/actions.ts';
@@ -52,6 +54,33 @@ export const pieceBaseY = (rank: number) => PIECE_THICKNESS / 2 + 0.004 + rank *
 export const DRAG_LIFT = 0.4;
 
 const DOUBLE_TAP_MS = 350;
+
+/** One download + parse per model file, shared by every copy of it on the table. */
+const modelCache = new Map<string, Promise<THREE.Object3D>>();
+const loadingMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', transparent: true, opacity: 0.35 });
+
+/** A 3D model (.glb) as a piece's body: fitted to the piece's footprint and sitting on the felt.
+ *  A translucent block holds its place while it downloads. */
+function ModelBody({ url, w, h, thickness }: { url: string; w: number; h: number; thickness: number }) {
+  const [obj, setObj] = useState<THREE.Object3D | null>(null);
+  useEffect(() => {
+    let live = true;
+    let p = modelCache.get(url);
+    if (!p) { p = new GLTFLoader().loadAsync(assetUrl(url)).then(g => g.scene); modelCache.set(url, p); }
+    p.then(scene => {
+      if (!live) return;
+      const c = scene.clone(true);
+      const box = new THREE.Box3().setFromObject(c), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+      const s = Math.min(w / (size.x || 1), h / (size.z || 1));
+      c.scale.setScalar(s);
+      c.position.set(-mid.x * s, -box.min.y * s - thickness / 2, -mid.z * s);
+      c.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      setObj(c);
+    }).catch(() => { modelCache.delete(url); if (live) store.notify('A 3D model on the table could not be loaded.'); });
+    return () => { live = false; };
+  }, [url, w, h, thickness]);
+  return obj ? <primitive object={obj} /> : <mesh geometry={geometryFor(w, h, thickness * 6)} material={loadingMaterial} />;
+}
 
 export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
   const group = useRef<THREE.Group>(null);
@@ -124,20 +153,22 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
   };
 
   const outlineColor = p.selected ? '#ffd24a' : p.lockColor;
+  const model = useMemo(() => { try { return (JSON.parse(p.face) as { model?: string }).model ?? ''; } catch { return ''; } }, [p.face]);
+  const handlers = {
+    onPointerDown,
+    onPointerOver: (e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); ui.hover(p.id); document.body.style.cursor = 'grab'; },
+    onPointerOut: () => { if (ui.hovered === p.id) ui.hover(null); document.body.style.cursor = ''; },
+    onContextMenu: (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); e.nativeEvent.preventDefault(); if (ui.justOrbited()) return; ui.select(ui.selected.has(p.id) ? [...ui.selected] : [p.id]); ui.openMenu({ x: e.clientX, y: e.clientY, id: p.id, source: 'table' }); },
+  };
 
   return (
     <group ref={group}>
       <group ref={flipper}>
-        <mesh
-          geometry={geometryFor(p.w, p.h, thickness)}
-          material={materials}
-          castShadow
-          receiveShadow
-          onPointerDown={onPointerDown}
-          onPointerOver={e => { e.stopPropagation(); ui.hover(p.id); document.body.style.cursor = 'grab'; }}
-          onPointerOut={() => { if (ui.hovered === p.id) ui.hover(null); document.body.style.cursor = ''; }}
-          onContextMenu={e => { e.stopPropagation(); e.nativeEvent.preventDefault(); if (ui.justOrbited()) return; ui.select(ui.selected.has(p.id) ? [...ui.selected] : [p.id]); ui.openMenu({ x: e.clientX, y: e.clientY, id: p.id, source: 'table' }); }}
-        />
+        {model ? (
+          <group {...handlers}><ModelBody url={model} w={p.w} h={p.h} thickness={thickness} /></group>
+        ) : (
+          <mesh geometry={geometryFor(p.w, p.h, thickness)} material={materials} castShadow receiveShadow {...handlers} />
+        )}
       </group>
       {outlineColor && (
         <mesh geometry={outlineFor(p.w, p.h)} material={highlightMaterial(outlineColor)} rotation-x={-Math.PI / 2} position-y={-thickness / 2 - 0.002} />

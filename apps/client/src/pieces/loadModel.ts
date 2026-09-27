@@ -1,0 +1,90 @@
+// A 3D model from Blender (.glb) straight onto the table. Checked here first with a real 3D
+// loader so a student gets an instant, specific "here's how to fix it in Blender" instead of a
+// failed upload — the server then re-checks it independently before storing it.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MODEL_LIMITS, modelProblems, type ModelProblem, type NormalizedKit, type PieceDefinition } from '@kitforge/shared-types';
+import { uploadModel } from '../net/api.ts';
+import { store } from '../net/tableStore.ts';
+import { actions } from './actions.ts';
+
+/** A dropped model lands at a sensible size: its larger footprint side this many inches. */
+const TARGET_SIDE_INCHES = 3;
+
+/** Does the glTF JSON point at files outside this one? (The loader would just fail to fetch them,
+ *  with an error a student can't act on.) */
+function referencesExternalFiles(buf: ArrayBuffer): boolean {
+  const view = new DataView(buf);
+  if (buf.byteLength < 20 || view.getUint32(0, true) !== 0x46546c67) return false;
+  const len = view.getUint32(12, true);
+  try {
+    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, len))) as { buffers?: { uri?: string }[]; images?: { uri?: string }[] };
+    const external = (u?: string) => u !== undefined && !u.startsWith('data:');
+    return (json.buffers ?? []).some(b => external(b.uri)) || (json.images ?? []).some(i => external(i.uri));
+  } catch { return false; }
+}
+
+async function inspect(file: File): Promise<{ problem: ModelProblem } | { footprint: { w: number; h: number } }> {
+  if (!/\.glb$/i.test(file.name)) return { problem: modelProblems.wrongFormat(file.name) };
+  const mb = file.size / 1024 / 1024;
+  if (mb > MODEL_LIMITS.maxMB) return { problem: modelProblems.tooBig(mb) };
+  const buf = await file.arrayBuffer();
+  if (referencesExternalFiles(buf)) return { problem: modelProblems.externalFiles() };
+
+  let scene: THREE.Object3D;
+  try { scene = (await new GLTFLoader().parseAsync(buf, '')).scene; } catch { return { problem: modelProblems.unreadable() }; }
+  let tris = 0, meshes = 0, maxTex = 0;
+  scene.traverse(o => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    meshes++;
+    const g = mesh.geometry;
+    tris += (g.index ? g.index.count : g.getAttribute('position')?.count ?? 0) / 3;
+    for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      for (const v of Object.values(m ?? {})) {
+        const img = (v as THREE.Texture | null)?.isTexture ? (v as THREE.Texture).image as { width?: number; height?: number } | undefined : undefined;
+        if (img) maxTex = Math.max(maxTex, img.width ?? 0, img.height ?? 0);
+      }
+    }
+  });
+  if (!meshes) return { problem: modelProblems.empty() };
+  if (tris > MODEL_LIMITS.maxTriangles) return { problem: modelProblems.tooManyTriangles(Math.round(tris)) };
+  if (maxTex > MODEL_LIMITS.maxTexturePx) return { problem: modelProblems.textureTooLarge(maxTex) };
+
+  const size = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3());
+  const big = Math.max(size.x, size.z) || 1;
+  return { footprint: { w: Math.max(0.3, (size.x / big) * TARGET_SIDE_INCHES), h: Math.max(0.3, (size.z / big) * TARGET_SIDE_INCHES) } };
+}
+
+export async function addModelFile(file: File) {
+  if (store.kitProgress) return;
+  store.kitProgress = 'Checking model…';
+  store.bump();
+  try {
+    const result = await inspect(file);
+    if ('problem' in result) { store.showHelp(result.problem); return; }
+    store.kitProgress = 'Uploading model…';
+    store.bump();
+    const { assetUrl } = await uploadModel(file);
+    const id = `mdl${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    const name = file.name.replace(/\.[^.]+$/, '') || 'Model';
+    const def: PieceDefinition = { id, kind: 'piece', name, frontImage: '', model: assetUrl, ...result.footprint };
+    const kit: NormalizedKit = { name, pieces: [{ pieceId: id, quantity: 1 }] };
+    actions.loadKit(kit, [def]);
+    store.notify(`Added “${name}” to the table.`);
+  } catch (err) {
+    const e = err as Error & { fix?: string };
+    if (e.fix) store.showHelp({ error: e.message, fix: e.fix });
+    else store.notify(e.message);
+  } finally {
+    store.kitProgress = null;
+    store.bump();
+  }
+}
+
+export function pickModelFile() {
+  // Accept anything so a wrong format (.blend, .fbx, .gltf…) gets the export steps, not silence.
+  const input = Object.assign(document.createElement('input'), { type: 'file' });
+  input.onchange = () => { const f = input.files?.[0]; if (f) void addModelFile(f); };
+  input.click();
+}

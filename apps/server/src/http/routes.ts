@@ -3,10 +3,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Application, type NextFunction, type Request, type Response } from 'express';
-import type { AuthResponse, UploadResponse } from '@kitforge/shared-types';
+import { MODEL_LIMITS, modelProblems, type AuthResponse, type UploadResponse } from '@kitforge/shared-types';
 import { RateLimiter, issueToken, passwordMatches, verifyToken } from '../auth.ts';
 import type { Services } from '../services.ts';
-import { MIME, sniffImageType } from '../storage/AssetStorage.ts';
+import { MIME, isGlb, sniffImageType } from '../storage/AssetStorage.ts';
+import { checkGlb } from '../storage/glbCheck.ts';
 
 const ip = (req: Request) => req.ip || req.socket.remoteAddress || 'unknown';
 
@@ -44,11 +45,20 @@ export function installRoutes(app: Application, { config, storage }: Services) {
 
   app.post('/api/upload', requireToken,
     (req, res, next) => { if (uploadLimit.allow(ip(req))) return next(); res.status(429).json({ error: 'Too many uploads. Slow down a little.' }); },
-    express.raw({ type: () => true, limit: config.maxUploadBytes }),
+    // Models may be bigger than images; the per-type limit is enforced after identifying the file.
+    express.raw({ type: () => true, limit: Math.max(config.maxUploadBytes, MODEL_LIMITS.maxMB * 1024 * 1024) }),
     async (req, res) => {
       const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      if (isGlb(body)) {
+        const problem = checkGlb(body);
+        if (problem) { res.status(422).json(problem); return; }
+        const saved = await storage.save(body, { type: 'glb' });
+        res.status(201).json({ assetUrl: `/uploads/${saved.id}` } satisfies UploadResponse);
+        return;
+      }
       const type = sniffImageType(body);
-      if (!type) { res.status(415).json({ error: 'Only PNG, JPG or WebP images can be imported.' }); return; }
+      if (!type) { res.status(415).json({ error: 'Only PNG, JPG or WebP images — or a .glb 3D model — can be imported.' }); return; }
+      if (body.length > config.maxUploadBytes) { res.status(413).json({ error: `Images can be up to ${config.maxUploadBytes / 1024 / 1024} MB.` }); return; }
       const saved = await storage.save(body, { type });
       res.status(201).json({ assetUrl: `/uploads/${saved.id}` } satisfies UploadResponse);
     });
@@ -75,6 +85,10 @@ export function installRoutes(app: Application, { config, storage }: Services) {
   app.use((err: Error & { status?: number; type?: string }, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status ?? 500;
     if (status >= 500) console.error(err);
-    res.status(status).json({ error: err.type === 'entity.too.large' ? `File too large (max ${config.maxUploadBytes / 1024 / 1024} MB).` : status >= 500 ? 'Server error.' : err.message });
+    if (err.type === 'entity.too.large') {
+      res.status(413).json({ error: `That file is too large (images up to ${config.maxUploadBytes / 1024 / 1024} MB, 3D models up to ${MODEL_LIMITS.maxMB} MB).`, fix: modelProblems.tooBig(MODEL_LIMITS.maxMB).fix });
+      return;
+    }
+    res.status(status).json({ error: status >= 500 ? 'Server error.' : err.message });
   });
 }

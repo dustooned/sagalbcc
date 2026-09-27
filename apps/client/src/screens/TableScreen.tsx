@@ -2,12 +2,14 @@
 import { useEffect, useState } from 'react';
 import { actions } from '../pieces/actions.ts';
 import { addImageFile } from '../pieces/loadImage.ts';
+import { addModelFile } from '../pieces/loadModel.ts';
 import { loadKitFile } from '../pieces/loadKit.ts';
 import { showRoomInAddressBar } from '../net/invite.ts';
 import { store, useTable } from '../net/tableStore.ts';
 import { CameraPanel } from '../hud/CameraPanel.tsx';
 import { ContextMenu } from '../hud/ContextMenu.tsx';
 import { EmptyTable } from '../hud/EmptyTable.tsx';
+import { HelpDialog } from '../hud/HelpDialog.tsx';
 import { Notices } from '../hud/Notices.tsx';
 import { RoomPanel } from '../hud/RoomPanel.tsx';
 import { TableLookPanel } from '../hud/TableLookPanel.tsx';
@@ -58,7 +60,9 @@ function useKitDrop() {
       if (!file) return;
       if (/\.json$/i.test(file.name)) void loadKitFile(file);
       else if (file.type.startsWith('image/')) void addImageFile(file);
-      else store.notify('Drop a .kittable.json from Kit Forge, or a PNG/JPG/WebP image.');
+      // .glb loads; other 3D formats go the same way so they get the Blender export steps.
+      else if (/\.(glb|gltf|blend|fbx|obj|stl|dae|3ds|usdz?)$/i.test(file.name)) void addModelFile(file);
+      else store.notify('Drop a .kittable.json from Kit Forge, a PNG/JPG/WebP image, or a .glb 3D model.');
     };
     window.addEventListener('dragover', onOver);
     window.addEventListener('dragleave', onLeave);
@@ -93,6 +97,7 @@ export function TableScreen() {
       )}
       {/* Right-click menus work even with panels hidden — they're not part of the HUD to hide. */}
       <ContextMenu />
+      <HelpDialog />
       <button
         className="hud-toggle"
         title={hudHidden ? 'Show panels' : 'Hide panels'}
