@@ -36,7 +36,6 @@ export function appendLog(ctx: TableContext, text: string) {
 }
 
 const nameOf = (ctx: TableContext, playerId: string) => ctx.state.players.get(playerId)?.name ?? 'Someone';
-const seatOf = (ctx: TableContext, playerId: string) => ctx.state.players.get(playerId)?.seat ?? 0;
 const faceOf = (piece: PieceState): PieceFace | null => { try { return piece.face ? (JSON.parse(piece.face) as PieceFace) : null; } catch { return null; } };
 const labelOf = (piece: PieceState) => faceOf(piece)?.name ?? 'a piece';
 const lockedByOther = (item: { lockedBy: string }, playerId: string) => !!item.lockedBy && item.lockedBy !== playerId;

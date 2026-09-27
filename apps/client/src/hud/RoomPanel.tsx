@@ -15,6 +15,8 @@ export function RoomPanel() {
   // Which counter's name is being edited: '' = none, '+' = a new one.
   const [editing, setEditing] = useState('');
   const [draft, setDraft] = useState('');
+  // Which counter value is being typed into, as `playerId:KEY`.
+  const [typing, setTyping] = useState('');
   const edit = (k: string) => { setEditing(k); setDraft(k === '+' ? '' : k); };
   const save = (e?: FormEvent) => {
     e?.preventDefault();
@@ -68,7 +70,13 @@ export function RoomPanel() {
                   <td key={k}>
                     <div className="counter">
                       <button onClick={() => actions.counter(p.id, k, -1)} aria-label={`${p.name} ${k} minus`}>−</button>
-                      <output title="Tap to type a number" onClick={() => { const n = prompt(`${p.name}'s ${k}:`, String(v)); if (n !== null && n.trim() !== '' && Number.isFinite(Number(n))) actions.setCounter(p.id, k, Number(n)); }}>{v}</output>
+                      {typing === `${p.id}:${k}` ? (
+                        <input className="counter-input" type="number" inputMode="numeric" autoFocus defaultValue={v} aria-label={`${p.name} ${k}`}
+                          onBlur={e => { const n = Number(e.currentTarget.value); if (e.currentTarget.value.trim() !== '' && Number.isFinite(n)) actions.setCounter(p.id, k, n); setTyping(''); }}
+                          onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setTyping(''); }} />
+                      ) : (
+                        <output title="Tap to type a number" onClick={() => setTyping(`${p.id}:${k}`)}>{v}</output>
+                      )}
                       <button onClick={() => actions.counter(p.id, k, 1)} aria-label={`${p.name} ${k} plus`}>+</button>
                     </div>
                   </td>
