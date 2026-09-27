@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { seatAngle } from '@kitforge/shared-types';
+import { isDragging } from './dragging.ts';
 import { ui } from './selection.ts';
 import { registerProjector } from './tablePointer.ts';
 
@@ -64,6 +65,9 @@ export function CameraRig({ seat }: { seat: number }) {
     const onDown = (e: PointerEvent) => {
       if (e.pointerType === 'touch') {
         if (e.defaultPrevented) return; // a piece/marker/note claimed this touch instead
+        // Holding or throwing something: the view stays put until it's down, so a second
+        // finger can't spin the table mid-throw. Only this player's own camera is affected.
+        if (isDragging()) return;
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (touches.size === 1) {
           orbit = { x: e.clientX, y: e.clientY, moved: false };
@@ -84,6 +88,7 @@ export function CameraRig({ seat }: { seat: number }) {
     };
     const onMove = (e: PointerEvent) => {
       if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
+        if (isDragging()) { touches.clear(); orbit = null; pinch = null; return; }
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (touches.size >= 2) {
           const [a, b] = [...touches.values()];

@@ -8,7 +8,7 @@ import type { SyncedMarker } from '../net/stateTypes.ts';
 import { store } from '../net/tableStore.ts';
 import { actions } from '../pieces/actions.ts';
 import { DRAG_LIFT } from './Piece3D.tsx';
-import { beginDrag, localDrag } from './dragging.ts';
+import { beginDrag, gliding, localDrag } from './dragging.ts';
 import { buildPolyhedronDie, randomQuaternion, type PolyDie } from './polyhedra.ts';
 import { ui } from './selection.ts';
 import { dieFaceMaterials, MARKER_COLORS, markerMaterial } from './tokenTextures.ts';
@@ -108,7 +108,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     if (!g || !pos) return;
     const m = store.state?.markers.get(p.id);
     const riding = m?.attachedTo ? store.piece(m.attachedTo) : undefined;
-    const lifted = localDrag.has(p.id) || (riding && localDrag.has(riding.id));
+    const lifted = (localDrag.has(p.id) && !gliding.has(p.id)) || (riding && localDrag.has(riding.id));
     const y = (riding ? p.pieceY + 0.06 : 0) + height / 2 + 0.004 + (lifted ? DRAG_LIFT + 0.02 : 0);
     const k = 1 - Math.exp(-dt * 20);
     if (g.position.lengthSq() === 0) g.position.set(pos.x, y, pos.z);
