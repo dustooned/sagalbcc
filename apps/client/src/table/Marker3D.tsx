@@ -35,6 +35,22 @@ const DIE_FACE_ROTATIONS: Record<number, THREE.Euler> = {
   6: new THREE.Euler(0, 0, -Math.PI / 2),
 };
 
+/** Corner points (die-local) each shape stands on — lets a tipping die rock on an edge. */
+const BOX_HULL = [-1, 1].flatMap(x => [-1, 1].flatMap(y => [-1, 1].map(z => new THREE.Vector3(x, y, z).multiplyScalar(DIE_SIZE / 2))));
+const polyHulls = new Map<PolyKind, THREE.Vector3[]>();
+function polyHull(kind: PolyKind, geometry: THREE.BufferGeometry) {
+  let h = polyHulls.get(kind);
+  if (h) return h;
+  const pos = geometry.getAttribute('position'), seen = new Set<string>();
+  h = [];
+  for (let i = 0; i < pos.count; i++) {
+    const key = `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
+    if (!seen.has(key)) { seen.add(key); h.push(new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i))); }
+  }
+  polyHulls.set(kind, h);
+  return h;
+}
+
 const DIE_FACE_QUATS: Record<number, THREE.Quaternion> = Object.fromEntries(
   Object.entries(DIE_FACE_ROTATIONS).map(([v, e]) => [v, new THREE.Quaternion().setFromEuler(e)]),
 );
@@ -136,7 +152,8 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
         kickDie(m, inHand);
       }
       const radius = isBoxDie ? DIE_SIZE / 2 : POLY_RADIUS[p.kind as PolyKind] * 0.8;
-      hop = stepDie(m, worldPos.current.copy(g.position), dt, radius, face, inHand);
+      const hull = isBoxDie ? BOX_HULL : polyHull(p.kind as PolyKind, poly!.geometry);
+      hop = stepDie(m, worldPos.current.copy(g.position), dt, radius, face, inHand, hull);
       // The die group is turned to face this player's seat; orientation is kept in world space.
       dieSpin.current.quaternion.copy(yawInv.current.copy(g.quaternion).invert()).multiply(m.q);
       dieSpin.current.position.y = hop;

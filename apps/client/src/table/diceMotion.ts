@@ -16,27 +16,33 @@ const BOUNCE = 0.38;          // fraction of speed kept per bounce
 const KICK_MIN = 11, KICK_RANGE = 7; // rad/s of random spin a roll adds
 const ROLL_GRIP = 10;         // how quickly spin follows travel on the felt
 const SPIN_FRICTION = 2.6;    // free spin decay per second
-const SETTLE_SPIN = 3.5;      // below this spin (rad/s) and…
+const SETTLE_SPIN = 6;        // below this spin (rad/s) and…
 const SETTLE_SPEED = 0.35;    // …below this travel speed (units/s), it tips onto its face
 const MAX_SPIN = 26;          // rad/s
+// Tipping onto a face: a spring that pulls toward flat, lightly damped, so the die falls over
+// (quickening as it goes) and rocks once before resting — like a real die, not a magnet.
+const TIP_PULL = 240;         // rad/s² per radian away from flat
+const TIP_DAMP = 20;          // per second — about one small rock, then still
 
 export interface DieMotion {
   q: THREE.Quaternion;         // world orientation
   spin: THREE.Vector3;         // angular velocity, world axis × rad/s
   prev: THREE.Vector3 | null;  // last position, for travel speed
   hop: number; hopV: number;   // height above rest and its vertical speed
+  settling: boolean;           // tipping onto its face — keeps going until the next roll or throw
 }
 
 export const newDieMotion = (start: THREE.Quaternion): DieMotion =>
-  ({ q: start.clone(), spin: new THREE.Vector3(), prev: null, hop: 0, hopV: 0 });
+  ({ q: start.clone(), spin: new THREE.Vector3(), prev: null, hop: 0, hopV: 0, settling: false });
 
 const tmpV = new THREE.Vector3(), tmpAxis = new THREE.Vector3(), dq = new THREE.Quaternion(), yawQ = new THREE.Quaternion();
-const aim = new THREE.Vector3(), have = new THREE.Vector3();
+const aim = new THREE.Vector3(), have = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
 
 /** A roll happened: random spin plus a hop (smaller while held in the hand). */
 export function kickDie(m: DieMotion, inHand: boolean) {
   tmpV.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
   m.spin.addScaledVector(tmpV, KICK_MIN + Math.random() * KICK_RANGE);
+  m.settling = false;
   if (!inHand) m.hopV = Math.max(m.hopV, HOP_SPEED * (0.8 + Math.random() * 0.4));
 }
 
@@ -60,7 +66,22 @@ const rest = new THREE.Quaternion();
  * Advances one frame. `pos` is where the die is drawn this frame (already smoothed), `radius` its
  * rolling radius, `face` the orientation showing the current value. Returns the hop height.
  */
-export function stepDie(m: DieMotion, pos: THREE.Vector3, dt: number, radius: number, face: THREE.Quaternion, inHand: boolean): number {
+/** How far the die's lowest corner sits below its centre, turned by `q` (the hull is die-local). */
+function lowest(hull: THREE.Vector3[], q: THREE.Quaternion) {
+  let min = Infinity;
+  for (const v of hull) min = Math.min(min, tmpV.copy(v).applyQuaternion(q).y);
+  return -min;
+}
+
+const delta = new THREE.Quaternion(), pull = new THREE.Vector3();
+
+/**
+ * Advances one frame. `pos` is where the die is drawn this frame (already smoothed), `radius` its
+ * rolling radius, `face` the orientation showing the current value, `hull` its corner points.
+ * Returns how far to raise the die this frame: its hop, plus however much a tilted die stands
+ * taller on an edge or corner than lying flat — so it rocks on the felt instead of sinking in.
+ */
+export function stepDie(m: DieMotion, pos: THREE.Vector3, dt: number, radius: number, face: THREE.Quaternion, inHand: boolean, hull: THREE.Vector3[]): number {
   dt = Math.min(dt, 0.05);
   // Travel on the table plane since last frame.
   let speed = 0;
@@ -92,10 +113,19 @@ export function stepDie(m: DieMotion, pos: THREE.Vector3, dt: number, radius: nu
   }
 
   // Nearly still on the felt: tip over onto the rolled face.
-  if (!inHand && m.hop === 0 && w < SETTLE_SPIN && speed < SETTLE_SPEED) {
-    nearestRest(face, m.q, rest);
-    m.q.slerp(rest, 1 - Math.exp(-dt * 11));
-    m.spin.multiplyScalar(Math.exp(-dt * 8));
+  nearestRest(face, m.q, rest);
+  if (inHand || m.hop > 0 || speed > SETTLE_SPEED * 3) m.settling = false;
+  else if (w < SETTLE_SPIN && speed < SETTLE_SPEED) m.settling = true;
+  if (m.settling) {
+    delta.copy(rest).multiply(tmpQ.copy(m.q).invert());
+    if (delta.w < 0) delta.set(-delta.x, -delta.y, -delta.z, -delta.w);
+    const angle = 2 * Math.acos(Math.min(1, delta.w));
+    const s = Math.sqrt(Math.max(1e-9, 1 - delta.w * delta.w));
+    pull.set(delta.x / s, delta.y / s, delta.z / s).multiplyScalar(angle * TIP_PULL);
+    m.spin.addScaledVector(pull, dt).multiplyScalar(Math.exp(-dt * TIP_DAMP));
+    if (angle < 0.003 && m.spin.lengthSq() < 0.01) { m.q.copy(rest); m.spin.set(0, 0, 0); }
   }
-  return m.hop;
+  // Stand on the lowest corner: lying flat = 0; balanced on an edge = taller.
+  const lift = inHand ? 0 : Math.max(0, lowest(hull, m.q) - lowest(hull, rest));
+  return m.hop + lift;
 }
