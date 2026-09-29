@@ -346,6 +346,11 @@ export function rotate(ctx: TableContext, playerId: string, ids: string[], delta
   const d = ROTATE_STEPS.includes(delta as number) ? (delta as number) : 90;
   return eachPiece(ctx, playerId, ids, piece => { piece.rotation = (((piece.rotation + d) % 360) + 360) % 360; });
 }
+/** 3D models: step to the next of the 6 "which way is up" orientations. Cards/tokens ignore it. */
+export function orient(ctx: TableContext, playerId: string, ids: string[], dir: unknown): OpResult {
+  const step = dir === -1 ? 5 : 1;
+  return eachPiece(ctx, playerId, ids, piece => { if (faceOf(piece)?.model) piece.orient = (piece.orient + step) % 6; });
+}
 export function tap(ctx: TableContext, playerId: string, ids: string[]): OpResult {
   return eachPiece(ctx, playerId, ids, piece => { piece.tapped = !piece.tapped; });
 }
@@ -355,6 +360,7 @@ export function clone(ctx: TableContext, playerId: string, id: unknown): OpResul
   const face = piece && faceOf(piece);
   if (!piece || !face) return fail();
   const copy = createPiece(ctx, { ownerId: playerId, face: { ...face, w: piece.w, h: piece.h }, x: piece.x + Math.min(piece.w, 1) * 0.3, z: piece.z + Math.min(piece.h, 1) * 0.3, rotation: piece.rotation, faceUp: piece.faceUp });
+  copy.orient = piece.orient;
   appendLog(ctx, `${nameOf(ctx, playerId)} cloned ${labelOf(copy)}.`);
   return ok();
 }

@@ -16,6 +16,9 @@ let holdingNow = false;
  *  ignores touch gestures meanwhile, so a second finger can't orbit the table mid-throw. */
 export const isDragging = () => active > 0;
 
+/** How high a held piece floats above the felt — clearly "in the hand", with a visible shadow gap. */
+export const DRAG_LIFT = 1.1;
+
 const SEND_EVERY_MS = 50;
 const CLICK_SLOP_PX = 4;
 
@@ -91,7 +94,11 @@ export function beginDrag(start: { clientX: number; clientY: number; pointerId?:
   // One hold at a time: a second finger landing on the same piece must not start a nested drag.
   // (A glide isn't a hold — you can grab the next die while the last one is still sliding.)
   if (holdingNow) return;
+  // Where the finger touched the piece (on the felt, where it rests)…
   const at = screenToTable(start.clientX, start.clientY);
+  // …and where that same finger points at the height the piece is lifted to. The piece is carried
+  // on that lifted plane, so it rises to sit right under the finger instead of floating off it.
+  const held = screenToTable(start.clientX, start.clientY, DRAG_LIFT) ?? at;
   if (!at || !list.length) return;
   active++;
   holdingNow = true;
@@ -115,7 +122,7 @@ export function beginDrag(start: { clientX: number; clientY: number; pointerId?:
   };
   const offsets = list.map(i => ({ id: i.id, dx: i.x - at.x, dz: i.z - at.z, w: i.w, h: i.h }));
   const many = list.length > 1;
-  for (const i of list) localDrag.set(i.id, { x: i.x, z: i.z });
+  for (const o of offsets) localDrag.set(o.id, held ? clampToTable(held.x + o.dx, held.z + o.dz, o.w, o.h) : { x: 0, z: 0 });
   if (many) store.send('grabMany', { ids: list.map(i => i.id) });
   else store.send('grab', { id: list[0].id });
 
@@ -133,7 +140,7 @@ export function beginDrag(start: { clientX: number; clientY: number; pointerId?:
     primaryAt = { x: ev.clientX, y: ev.clientY };
     if (twist) { stepTwist(); return; } // twisting: the holding finger pivots, it doesn't drag
     if (!moved && Math.hypot(ev.clientX - start.clientX, ev.clientY - start.clientY) < CLICK_SLOP_PX) return;
-    const p = screenToTable(ev.clientX, ev.clientY);
+    const p = screenToTable(ev.clientX, ev.clientY, DRAG_LIFT);
     if (!p) return;
     moved = true;
     for (const o of offsets) localDrag.set(o.id, clampToTable(p.x + o.dx, p.z + o.dz, o.w, o.h));
@@ -150,7 +157,8 @@ export function beginDrag(start: { clientX: number; clientY: number; pointerId?:
     if (done) return;
     done = true;
     active = Math.max(0, active - 1);
-    const final = current();
+    // A click that never moved puts it back exactly where it was (lifting shifts it slightly).
+    const final = moved ? current() : list.map(i => ({ id: i.id, x: i.x, z: i.z }));
     for (const o of offsets) { localDrag.delete(o.id); gliding.delete(o.id); }
     if (many) store.send('dropMany', { items: final });
     else store.send('drop', { ...final[0], snap: moved });

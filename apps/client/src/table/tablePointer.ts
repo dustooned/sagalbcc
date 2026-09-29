@@ -13,10 +13,13 @@ let canvas: HTMLElement | null = null;
 
 export function registerProjector(cam: THREE.Camera, el: HTMLElement) { camera = cam; canvas = el; }
 
-export function screenToTable(clientX: number, clientY: number): Point2 | null {
+/** Where the pointer's ray meets the horizontal plane at `height` (0 = the felt). Held pieces use
+ *  their lifted height, so they stay exactly under the finger instead of drifting off it. */
+export function screenToTable(clientX: number, clientY: number, height = 0): Point2 | null {
   if (!camera || !canvas) return null;
   const r = canvas.getBoundingClientRect();
   ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
+  plane.constant = -height;
   return raycaster.ray.intersectPlane(plane, hit) ? { x: hit.x, z: hit.z } : null;
 }

@@ -31,6 +31,7 @@ function useTableKeys() {
         case '=': case '+': actions.bigger(ids); break;
         case '-': case '_': actions.smaller(ids); break;
         case 't': actions.tap(ids); break;
+        case 'u': actions.orient(ids, e.shiftKey ? -1 : 1); break;
         case 'delete':
         case 'backspace':
           if (ids.length && (ids.length === 1 || confirm(`Delete ${ids.length} pieces?`))) { actions.remove(ids); ui.select([]); }

@@ -14,6 +14,8 @@ export interface ClientMessages {
   /** Scale pieces by a factor (0.5–2 per step), kept between 0.4" and 30" on the long side. */
   resize: { ids: string[]; factor: number };
   tap: { ids: string[] };
+  /** 3D models: cycle which side faces up (dir -1 = back one step). */
+  orient: { ids: string[]; dir?: 1 | -1 };
   clone: { id: string };
   remove: { ids: string[] };
   /** Spawns every piece in the kit onto the table (scattered, boards centered). Replaces nothing —

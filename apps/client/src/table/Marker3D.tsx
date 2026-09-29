@@ -9,7 +9,8 @@ import { store } from '../net/tableStore.ts';
 import { actions } from '../pieces/actions.ts';
 import { DRAG_LIFT } from './Piece3D.tsx';
 import { beginDrag, gliding, localDrag } from './dragging.ts';
-import { buildPolyhedronDie, randomQuaternion, trapezohedronGeometry, type PolyDie } from './polyhedra.ts';
+import { buildPolyhedronDie, trapezohedronGeometry, type PolyDie } from './polyhedra.ts';
+import { kickDie, newDieMotion, stepDie, type DieMotion } from './diceMotion.ts';
 import { ui } from './selection.ts';
 import { dieFaceMaterials, MARKER_COLORS, markerMaterial } from './tokenTextures.ts';
 
@@ -33,6 +34,10 @@ const DIE_FACE_ROTATIONS: Record<number, THREE.Euler> = {
   5: new THREE.Euler(Math.PI, 0, 0),
   6: new THREE.Euler(0, 0, -Math.PI / 2),
 };
+
+const DIE_FACE_QUATS: Record<number, THREE.Quaternion> = Object.fromEntries(
+  Object.entries(DIE_FACE_ROTATIONS).map(([v, e]) => [v, new THREE.Quaternion().setFromEuler(e)]),
+);
 
 /** d20's circumradius reads as roughly the same "size" on the table as a d6/d8/d12 despite having
  * more, smaller faces — this just tunes each shape to a similar visual footprint. */
@@ -93,11 +98,9 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
   // your screen for the first time) tumbles in instead of snapping to place.
   const lastRoll = useRef('');
   const rollKey = `${p.rolls}:${p.value}`;
-  const spinOffset = useRef(new THREE.Vector3());
-  const rollStart = useRef(0);
-  const tumbleQuat = useRef(new THREE.Quaternion());
-  const tumbleLeg = useRef(-1);
-  const currentQuat = useRef(new THREE.Quaternion());
+  const motion = useRef<DieMotion | null>(null);
+  const worldPos = useRef(new THREE.Vector3());
+  const yawInv = useRef(new THREE.Quaternion());
   const isBoxDie = BOX_DIE_KINDS.has(p.kind);
   const isPoly = POLY_KINDS.has(p.kind);
   const isDie = isBoxDie || isPoly;
@@ -116,48 +119,27 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     const riding = m?.attachedTo ? store.piece(m.attachedTo) : undefined;
     const lifted = (localDrag.has(p.id) && !gliding.has(p.id)) || (riding && localDrag.has(riding.id));
     const y = (riding ? p.pieceY + 0.06 : 0) + height / 2 + 0.004 + (lifted ? DRAG_LIFT + 0.02 : 0);
+    let hop = 0;
     const k = 1 - Math.exp(-dt * 20);
     if (g.position.lengthSq() === 0) g.position.set(pos.x, y, pos.z);
     g.position.x += (pos.x - g.position.x) * k;
     g.position.z += (pos.z - g.position.z) * k;
     g.position.y += (y - g.position.y) * k;
 
-    if (isBoxDie && dieSpin.current) {
-      // A fresh roll: tumble a couple of extra full turns around a random axis before settling —
-      // the target keeps those extra turns forever, so the exponential ease-toward-target below
-      // reads as a spin, not a snap, with no separate animation state machine needed.
+    if (isDie && dieSpin.current) {
+      const face = isBoxDie ? DIE_FACE_QUATS[p.value] ?? DIE_FACE_QUATS[1] : poly!.quaternionFor(p.value);
+      const m = (motion.current ??= newDieMotion(face));
+      const inHand = !!lifted;
       if (lastRoll.current !== rollKey) {
+        // A fresh roll (also on first appearance, so a new die tumbles in rather than popping up).
         lastRoll.current = rollKey;
-        const axis: 'x' | 'y' | 'z' = (['x', 'y', 'z'] as const)[Math.floor(Math.random() * 3)];
-        spinOffset.current[axis] += (2 + Math.floor(Math.random() * 2)) * Math.PI * 2;
+        kickDie(m, inHand);
       }
-      const base = DIE_FACE_ROTATIONS[p.value] ?? DIE_FACE_ROTATIONS[1];
-      const r = dieSpin.current.rotation;
-      const dk = 1 - Math.exp(-dt * 3.5);
-      r.x += (base.x + spinOffset.current.x - r.x) * dk;
-      r.y += (base.y + spinOffset.current.y - r.y) * dk;
-      r.z += (base.z + spinOffset.current.z - r.z) * dk;
-    } else if (isPoly && poly && dieSpin.current) {
-      // Quaternions can't "add extra turns" the way Euler angles can, so the tumble instead
-      // slerps through one random orientation first, then on to the real settled orientation —
-      // two legs read as one continuous tumble-and-land motion.
-      // Several random orientations in a row, then land: reads as tumbling across the felt.
-      const LEG_MS = 150, LEGS = 3;
-      if (lastRoll.current !== rollKey) {
-        lastRoll.current = rollKey;
-        rollStart.current = performance.now();
-      }
-      const elapsed = performance.now() - rollStart.current;
-      const leg = Math.floor(elapsed / LEG_MS);
-      if (leg < LEGS && tumbleLeg.current !== leg) {
-        randomQuaternion(tumbleQuat.current);
-        tumbleLeg.current = leg;
-      }
-      if (leg >= LEGS) tumbleLeg.current = -1;
-      const tumbling = leg < LEGS;
-      const target = tumbling ? tumbleQuat.current : poly.quaternionFor(p.value);
-      currentQuat.current.slerp(target, 1 - Math.exp(-dt * (tumbling ? 14 : 6)));
-      dieSpin.current.quaternion.copy(currentQuat.current);
+      const radius = isBoxDie ? DIE_SIZE / 2 : POLY_RADIUS[p.kind as PolyKind] * 0.8;
+      hop = stepDie(m, worldPos.current.copy(g.position), dt, radius, face, inHand);
+      // The die group is turned to face this player's seat; orientation is kept in world space.
+      dieSpin.current.quaternion.copy(yawInv.current.copy(g.quaternion).invert()).multiply(m.q);
+      dieSpin.current.position.y = hop;
     } else if (dieSpin.current) {
       // A flat token (+1, DMG, STATUS, custom): flips end over end like a coin while it's
       // sliding from a throw, then lays back down face-up.

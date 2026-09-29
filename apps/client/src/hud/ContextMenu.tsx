@@ -77,7 +77,8 @@ export function ContextMenu() {
   const many = ids.length > 1 ? ` (${ids.length})` : '';
   const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
   const stack = stackMembers(t.state, piece);
-  const height = 340 + (stack.length > 1 ? 140 : 0);
+  const isModel = (() => { try { return !!(JSON.parse(piece.face) as { model?: string }).model; } catch { return false; } })();
+  const height = 380 + (stack.length > 1 ? 140 : 0);
   const left = Math.min(menu.x, window.innerWidth - 220), topPx = Math.max(8, Math.min(menu.y, window.innerHeight - height));
 
   return (
@@ -101,6 +102,9 @@ export function ContextMenu() {
           <button onClick={() => actions.turnLeft(ids)} title="Shift+Q">↺ 15°</button>
           <button onClick={() => actions.turnRight(ids)} title="Shift+E">↻ 15°</button>
         </li>
+        {isModel && (
+          <li><button onClick={() => actions.orient(ids)} title="U (Shift+U goes back)">⤾ Stand upright — next side <kbd>U</kbd></button></li>
+        )}
         <li className="menu-row">
           <button onClick={() => actions.smaller(ids)} title="− key">− Smaller</button>
           <button onClick={() => actions.bigger(ids)} title="+ key">＋ Bigger</button>

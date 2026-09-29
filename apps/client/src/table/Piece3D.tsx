@@ -38,6 +38,8 @@ export interface Piece3DProps {
   faceUp: boolean;
   rotation: number;
   tapped: boolean;
+  /** 3D models: which side faces up (0–5). */
+  orient: number;
   backImage: string;
   /** Position in the stacking order among table pieces (0 = bottom). */
   rank: number;
@@ -51,9 +53,18 @@ const angleTo = (from: number, to: number) => Math.atan2(Math.sin(to - from), Ma
 
 /** Resting height of a piece by its rank in the stacking order (markers riding on it sit above). */
 export const pieceBaseY = (rank: number) => PIECE_THICKNESS / 2 + 0.004 + rank * 0.0035;
-export const DRAG_LIFT = 0.4;
+export { DRAG_LIFT } from './dragging.ts';
+import { DRAG_LIFT } from './dragging.ts';
 
 const DOUBLE_TAP_MS = 350;
+
+/** The 6 ways a model can stand: as exported, upside down, then tipped onto each side. Upside down
+ *  comes first because it's the most common import problem. */
+const ORIENTS = [
+  new THREE.Euler(0, 0, 0), new THREE.Euler(Math.PI, 0, 0),
+  new THREE.Euler(Math.PI / 2, 0, 0), new THREE.Euler(-Math.PI / 2, 0, 0),
+  new THREE.Euler(0, 0, Math.PI / 2), new THREE.Euler(0, 0, -Math.PI / 2),
+];
 
 /** One download + parse per model file, shared by every copy of it on the table. */
 const modelCache = new Map<string, Promise<THREE.Object3D>>();
@@ -61,7 +72,7 @@ const loadingMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', trans
 
 /** A 3D model (.glb) as a piece's body: fitted to the piece's footprint and sitting on the felt.
  *  A translucent block holds its place while it downloads. */
-function ModelBody({ url, w, h, thickness }: { url: string; w: number; h: number; thickness: number }) {
+function ModelBody({ url, w, h, thickness, orient }: { url: string; w: number; h: number; thickness: number; orient: number }) {
   const [obj, setObj] = useState<THREE.Object3D | null>(null);
   // Sharper textures at a glancing angle (the default blurs or shimmers fine detail).
   const anisotropy = useThree(s => Math.min(8, s.gl.capabilities.getMaxAnisotropy()));
@@ -72,6 +83,9 @@ function ModelBody({ url, w, h, thickness }: { url: string; w: number; h: number
     p.then(scene => {
       if (!live) return;
       const c = scene.clone(true);
+      // Turn it upright first, so fitting and seating on the felt use the turned shape.
+      c.rotation.copy(ORIENTS[orient % 6] ?? ORIENTS[0]);
+      c.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(c), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
       const s = Math.min(w / (size.x || 1), h / (size.z || 1));
       c.scale.setScalar(s);
@@ -90,7 +104,7 @@ function ModelBody({ url, w, h, thickness }: { url: string; w: number; h: number
       setObj(c);
     }).catch(() => { modelCache.delete(url); if (live) store.notify('A 3D model on the table could not be loaded.'); });
     return () => { live = false; };
-  }, [url, w, h, thickness, anisotropy]);
+  }, [url, w, h, thickness, anisotropy, orient]);
   return obj ? <primitive object={obj} /> : <mesh geometry={geometryFor(w, h, thickness * 6)} material={loadingMaterial} />;
 }
 
@@ -183,7 +197,7 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
     <group ref={group}>
       <group ref={flipper}>
         {model ? (
-          <group {...handlers}><ModelBody url={model} w={p.w} h={p.h} thickness={thickness} /></group>
+          <group {...handlers}><ModelBody url={model} w={p.w} h={p.h} thickness={thickness} orient={p.orient} /></group>
         ) : (
           <mesh geometry={geometryFor(p.w, p.h, thickness)} material={materials} castShadow receiveShadow {...handlers} />
         )}

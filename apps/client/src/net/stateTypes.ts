@@ -2,6 +2,7 @@
 import type { MarkerKind } from '@kitforge/shared-types';
 
 export interface SyncedPiece {
+  orient: number;
   id: string;
   ownerId: string;
   x: number;

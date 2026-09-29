@@ -21,6 +21,9 @@ export const PieceState = schema({
   face: t.string().default(''),
   backImage: t.string().default(''),
   kind: t.string().default('card'),
+  /** 3D models only: which of the model's 6 sides faces up (0 = as exported). Fixes models that
+   *  arrive upside down or lying on their side. */
+  orient: t.uint8().default(0),
 }, 'Piece');
 export type PieceState = SchemaType<typeof PieceState>;
 

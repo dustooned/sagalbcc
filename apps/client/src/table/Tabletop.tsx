@@ -69,6 +69,7 @@ export function Tabletop() {
           faceUp={c.faceUp}
           rotation={c.rotation}
           tapped={c.tapped}
+          orient={c.orient}
           backImage={c.backImage}
           rank={rank}
           selected={u.selected.has(c.id)}

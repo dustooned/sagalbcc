@@ -122,6 +122,7 @@ export class TableRoom extends Room<{ state: TableState }> {
     this.on('flip', (pid, m) => ops.flip(c, pid, cleanIds(m.ids)));
     this.on('rotate', (pid, m) => ops.rotate(c, pid, cleanIds(m.ids), m.delta));
     this.on('resize', (pid, m) => ops.resize(c, pid, cleanIds(m.ids), m.factor));
+    this.on('orient', (pid, m) => ops.orient(c, pid, cleanIds(m.ids), m.dir));
     this.on('tap', (pid, m) => ops.tap(c, pid, cleanIds(m.ids)));
     this.on('clone', (pid, m) => ops.clone(c, pid, m.id));
     this.on('remove', (pid, m) => ops.remove(c, pid, cleanIds(m.ids)));

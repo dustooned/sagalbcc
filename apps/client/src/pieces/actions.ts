@@ -12,6 +12,8 @@ export const actions = {
   turnRight: (ids: string[]) => ids.length && store.send('rotate', { ids, delta: -15 }),
   bigger: (ids: string[]) => ids.length && store.send('resize', { ids, factor: 1.2 }),
   smaller: (ids: string[]) => ids.length && store.send('resize', { ids, factor: 1 / 1.2 }),
+  /** 3D models: next "which way is up" (fixes models that import upside down or on their side). */
+  orient: (ids: string[], dir: 1 | -1 = 1) => ids.length && store.send('orient', { ids, dir }),
   tap: (ids: string[]) => ids.length && store.send('tap', { ids }),
   clone: (id: string) => store.send('clone', { id }),
   remove: (ids: string[]) => ids.length && store.send('remove', { ids }),
