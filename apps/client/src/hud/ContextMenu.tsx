@@ -101,8 +101,8 @@ export function ContextMenu() {
           <li><button onClick={run(() => actions.shuffle(ids))}>Shuffle into a stack <kbd>R</kbd></button></li>
           <li><button onClick={run(() => actions.gather(ids))}>Gather into a stack <kbd>G</kbd></button></li>
           <li className="menu-row">
-            <button onClick={run(() => actions.setFace(ids, true))}>▲ All face up</button>
-            <button onClick={run(() => actions.setFace(ids, false))}>▼ All face down</button>
+            <button onClick={run(() => actions.setFace(ids, true))}>▲ Face up</button>
+            <button onClick={run(() => actions.setFace(ids, false))}>▼ Face down</button>
           </li>
           <li className="sep" />
         </>}
