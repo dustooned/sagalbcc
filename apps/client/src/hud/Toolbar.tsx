@@ -22,7 +22,7 @@ export function Toolbar() {
           <div className="row wrap">
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickKitFile}>{t.kitProgress ?? '📦 Load kit…'}</button>
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickImageFile}>🖼️ Add image…</button>
-            <button className="btn small" disabled={!!t.kitProgress} onClick={pickModelFile} title=".glb, .obj or .stl">🧊 Add 3D model…</button>
+            <button className="btn small" disabled={!!t.kitProgress} onClick={pickModelFile} title=".glb, .stl, or a textured .obj — pick the .obj, .mtl and images together, or a .zip">🧊 Add 3D model…</button>
             <button className="btn small ghost" onClick={() => t.showHelp(BLENDER_EXPORT_HELP)} title="Blender export settings" aria-label="Blender export settings">ⓘ</button>
             <a className="btn small ghost" href="https://dustooned.github.io/kitb/" target="_blank" rel="noreferrer">🛠️ Kit Forge</a>
             <a className="btn small ghost" href="/manual.html" target="_blank" rel="noreferrer">📖 Manual</a>

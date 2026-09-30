@@ -80,8 +80,11 @@ function useKitDrop() {
       if (!hasFiles(e)) return;
       e.preventDefault();
       setOver(false);
-      const file = e.dataTransfer?.files[0];
+      const files = [...(e.dataTransfer?.files ?? [])];
+      const file = files[0];
       if (!file) return;
+      // A textured OBJ arrives as several files (.obj + .mtl + images) or a .zip.
+      if (files.some(f => /\.(obj|zip)$/i.test(f.name))) { void addModelFile(files); return; }
       if (/\.json$/i.test(file.name)) void loadKitFile(file);
       else if (isTableMedia(file)) void addImageFile(file);
       // .glb loads; other 3D formats go the same way so they get the Blender export steps.

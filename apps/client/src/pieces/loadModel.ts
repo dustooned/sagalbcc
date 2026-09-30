@@ -10,6 +10,7 @@ import { MODEL_LIMITS, UNSUPPORTED_GLTF_EXTENSIONS, modelProblems, type ModelPro
 import { uploadModel } from '../net/api.ts';
 import { store } from '../net/tableStore.ts';
 import { actions } from './actions.ts';
+import { TEXTURE_TARGET_PX, isObjBundle, largestTexture, objBundleToGlb } from './objBundle.ts';
 
 /** A dropped model lands at a sensible size: its larger footprint side this many inches. */
 const TARGET_SIDE_INCHES = 3;
@@ -85,12 +86,32 @@ async function toGlb(file: File): Promise<File> {
   return new File([glb], file.name.replace(/\.[^.]+$/, '.glb'), { type: 'model/gltf-binary' });
 }
 
-export async function addModelFile(file: File) {
+/** A textured OBJ (the .obj + .mtl + images, or a .zip of them) → one .glb with its textures
+ *  inside. Big textures are shrunk unless the student says no; then the normal limits apply. */
+async function bundleToGlb(files: File[]): Promise<File | null> {
+  const biggest = await largestTexture(files);
+  const shrink = biggest <= TEXTURE_TARGET_PX
+    || confirm(`Some textures are ${biggest} px. Shrink them to ${TEXTURE_TARGET_PX} px so the table stays fast for everyone? (Recommended)`);
+  if (!shrink && biggest > MODEL_LIMITS.maxTexturePx) { store.showHelp(modelProblems.textureTooLarge(biggest)); return null; }
+  store.kitProgress = 'Baking textures…';
+  store.bump();
+  const { file, missing } = await objBundleToGlb(files, { shrink });
+  if (missing.length && !confirm(`Missing: ${missing.join(', ')}.\n\nOK = add the model without ${missing.length === 1 ? 'that texture' : 'those textures'} (plain color there).\nCancel = stop, so you can drop them in together with the .obj.`)) return null;
+  return file;
+}
+
+/** One file, or several dropped at once (a textured OBJ comes as .obj + .mtl + images). */
+export async function addModelFile(input: File | File[]) {
   if (store.kitProgress) return;
+  const files = Array.isArray(input) ? input : [input];
+  let file = files.find(f => /\.(glb|gltf|obj|stl|zip|blend|fbx|dae|3ds|usdz?)$/i.test(f.name)) ?? files[0];
   store.kitProgress = 'Checking model…';
   store.bump();
   try {
-    if (SHAPE_ONLY.test(file.name)) {
+    if (isObjBundle(files) && (files.length > 1 || /\.zip$/i.test(file.name) || /^\s*mtllib\s/m.test(await file.slice(0, 65536).text()))) {
+      try { const baked = await bundleToGlb(files); if (!baked) return; file = baked; }
+      catch (err) { store.showHelp({ error: 'That OBJ could not be read.', fix: (err as Error).message.startsWith('No .obj') ? (err as Error).message : modelProblems.unreadable().fix }); return; }
+    } else if (SHAPE_ONLY.test(file.name)) {
       try { file = await toGlb(file); } catch { store.showHelp(modelProblems.unreadable()); return; }
     }
     const result = await inspect(file);
@@ -116,7 +137,8 @@ export async function addModelFile(file: File) {
 
 export function pickModelFile() {
   // Accept anything so a wrong format (.blend, .fbx, .gltf…) gets the export steps, not silence.
-  const input = Object.assign(document.createElement('input'), { type: 'file' });
-  input.onchange = () => { const f = input.files?.[0]; if (f) void addModelFile(f); };
+  // Several files at once for a textured OBJ: the .obj, its .mtl and the images (or one .zip).
+  const input = Object.assign(document.createElement('input'), { type: 'file', multiple: true });
+  input.onchange = () => { const fs = [...(input.files ?? [])]; if (fs.length) void addModelFile(fs); };
   input.click();
 }

@@ -107,7 +107,7 @@ a{color:var(--accent)}
 <tr><td>Kits</td><td><code>.kittable.json</code> (Kit Forge → Send to Table, or inside its Export ZIP)</td><td>The <code>.zip</code> itself — unzip it first</td></tr>
 <tr><td>Images</td><td>PNG, JPG, WebP (up to 8 MB)</td><td>PSD, PDF, SVG — make those in Kit Forge instead</td></tr>
 <tr><td>Animated</td><td><b>GIF</b> — up to 8 MB, 300 frames, 20 seconds, 1024 px<br><b>WebM / MP4</b> clips — up to 10 MB, 10 seconds, 1280 px (720p). Silent, loop forever.</td><td>Longer or bigger files — SAGA explains how to trim them</td></tr>
-<tr><td>3D models</td><td><code>.glb</code> — keeps colors &amp; textures<br><code>.obj</code> / <code>.stl</code> — quick, shape only (one plain color)</td><td>.blend, .gltf, .fbx, .dae, .usdz — export them as .glb</td></tr>
+<tr><td>3D models</td><td><code>.glb</code> — keeps colors &amp; textures<br><code>.obj</code> + its <code>.mtl</code> + images (or a <code>.zip</code> of them) — keeps textures<br><code>.obj</code> alone / <code>.stl</code> — quick, shape only (one plain color)</td><td>.blend, .gltf, .fbx, .dae, .usdz — export them as .glb</td></tr>
 </table>
 </section>
 
@@ -123,7 +123,9 @@ a{color:var(--accent)}
 </section>
 
 <section id="models"><h2>3D models from Blender</h2>
-<p><b>Easiest:</b> any <code>.obj</code> or <code>.stl</code> works as-is — it just shows in one plain color. For colors and textures, export <code>.glb</code> with the settings below.</p>
+<p><b>Easiest:</b> any <code>.obj</code> or <code>.stl</code> works as-is — it just shows in one plain color.</p>
+<p><b>Textured OBJ:</b> select the <code>.obj</code>, its <code>.mtl</code> and all its image files together (or drop one <code>.zip</code> of the folder). SAGA matches the images by file name — even when the .mtl points to a folder on someone else's computer — and bakes them into the model. Textures bigger than 2048 px are shrunk unless you say no; images without see-through parts are stored as JPEG to keep the model small. If an image is missing, SAGA names it and asks whether to add the model without it.</p>
+<p>For the best look (shine, metal, lighting detail), export <code>.glb</code> with the settings below.</p>
 <h3>Fastest: the SAGA Blender add-on</h3>
 <p>Bakes procedural materials, color ramps and textures into one small <code>.glb</code> with one button — no settings to get right.</p>
 <ol>
