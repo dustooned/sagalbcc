@@ -38,7 +38,7 @@ export const Note3D = memo(function Note3D(p: { id: string; text: string; author
   });
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
-    if (e.button !== 0 || ui.spaceHeld) return;
+    if (e.button !== 0 || ui.spaceHeld || e.ctrlKey || e.metaKey) return; // Ctrl/⌘+drag = box select
     e.stopPropagation();
     e.nativeEvent.preventDefault(); // tells CameraRig this touch grabbed a note, not the table
     ui.openMenu(null);

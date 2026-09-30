@@ -155,7 +155,8 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
   });
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
-    if (e.button !== 0 || ui.spaceHeld) return;
+    // Ctrl/⌘: leave it to CameraRig, which draws a selection box even starting on a piece.
+    if (e.button !== 0 || ui.spaceHeld || e.ctrlKey || e.metaKey) return;
     e.stopPropagation();
     e.nativeEvent.preventDefault(); // tells CameraRig this touch grabbed a piece, not the table
     // A quick double-tap flips the card — the reliable touch equivalent of the F key/menu item;

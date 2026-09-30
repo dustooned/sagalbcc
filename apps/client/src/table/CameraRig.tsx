@@ -4,6 +4,7 @@
 // here as a table drag. Starts looking from your own seat. The on-screen camera buttons
 // (hud/CameraPanel) drive the same view through `cameraControls`, so touch devices can orbit too.
 // Left-dragging empty table with the mouse draws a selection box (Shift adds to the selection);
+// Ctrl/⌘+drag adds too and can start anywhere, even on top of a piece;
 // on touch, the ⬚ Select button makes one finger do the same.
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -69,7 +70,7 @@ export function CameraRig({ seat }: { seat: number }) {
       return (loose.length ? loose : hits).map(p => p.id);
     };
     const startBox = (e: PointerEvent) => {
-      box = { id: e.pointerId, x0: e.clientX, y0: e.clientY, add: e.shiftKey, moved: false };
+      box = { id: e.pointerId, x0: e.clientX, y0: e.clientY, add: e.shiftKey || e.ctrlKey || e.metaKey, moved: false };
     };
     const moveBox = (e: PointerEvent) => {
       if (!box || e.pointerId !== box.id) return false;
@@ -81,7 +82,8 @@ export function CameraRig({ seat }: { seat: number }) {
     const endBox = (e: PointerEvent) => {
       if (!box || e.pointerId !== box.id) return false;
       const b = box; box = null;
-      if (!b.moved) return true;
+      // Ctrl/⌘+click on a piece (no drag): toggle just that one, like Shift+click.
+      if (!b.moved) { if (b.add && ui.hovered && store.piece(ui.hovered)) { ui.toggle(ui.hovered); ui.setBox(null); } return true; }
       const ids = piecesInBox(b.x0, b.y0, e.clientX, e.clientY);
       ui.select(b.add ? [...new Set([...ui.selected, ...ids])] : ids);
       ui.setBox(null);
