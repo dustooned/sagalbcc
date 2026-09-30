@@ -14,6 +14,9 @@ export function TableLookPanel() {
   const [grad, setGrad] = useState(['#2b1055', '#d53369', '#ffb86b']);
   const pending = useRef<{ color: string; timer: number } | null>(null);
   const state = t.state;
+  // Hooks stay above the early return below — React needs the same hooks on every render.
+  const [strength, setStrength] = useState<number | null>(null);
+  const strengthTimer = useRef(0);
 
   // The native color picker fires on every drag tick; send the latest color at most ~6×/s.
   function sendFelt(color: string) {
@@ -24,8 +27,6 @@ export function TableLookPanel() {
   const felt = state.lookFelt.toLowerCase();
   const bg = parseBackdrop(state.lookBackdrop);
   const atmo = parseAtmosphere(state.lookAtmosphere);
-  const [strength, setStrength] = useState<number | null>(null);
-  const strengthTimer = useRef(0);
   // Like the color picker: the slider fires constantly, so send its latest value ~6×/s.
   function sendStrength(v: number) {
     setStrength(v);
@@ -108,6 +109,7 @@ export function TableLookPanel() {
             <button className="btn small" disabled={busy} onClick={() => bgInput.current?.click()}>🌌 Background image…</button>
             <button className="btn small ghost" onClick={() => t.send('setTableLook', { backdrop: DEFAULT_BACKDROP })}>Plain</button>
           </div>
+          <p className="muted small">Any picture fills the space behind the table. A 2 : 1 panorama (e.g. 4096 × 2048 px) wraps all the way around.</p>
           <div className="field"><span>EFFECT</span></div>
           <div className="seg" role="radiogroup" aria-label="Background effect">
             {([['none', 'Off'], ['wave', '〰 Wave'], ['kaleido', '❋ Kaleido']] as [BackdropEffect, string][]).map(([e, label]) => (
