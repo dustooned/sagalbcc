@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { BACKDROP_PRESETS, DEFAULT_BACKDROP, FELT_PRESETS, parseAtmosphere, parseBackdrop, type AtmosphereKind, type Backdrop, type BackdropEffect } from '@kitforge/shared-types';
 import { uploadImage } from '../net/api.ts';
+import { IMAGE_TARGET_PX, prepareImage } from '../pieces/compressImage.ts';
 import { useTable } from '../net/tableStore.ts';
 
 export function TableLookPanel() {
@@ -37,8 +38,10 @@ export function TableLookPanel() {
   const same = (a: string[], b: string[]) => a.join() === b.join();
   const preview = (c: string[]) => `linear-gradient(180deg, ${c.join(', ')})`;
 
-  async function useBgImage(file: File) {
-    if (!file.type.startsWith('image/')) { t.notify('Pick a PNG, JPG or WebP image.'); return; }
+  async function useBgImage(picked: File) {
+    if (!picked.type.startsWith('image/')) { t.notify('Pick a PNG, JPG or WebP image.'); return; }
+    const file = await prepareImage(picked, IMAGE_TARGET_PX.table, (error, fix) => t.showHelp({ error, fix }));
+    if (!file) return;
     setBusy(true);
     try {
       const { assetUrl } = await uploadImage(file);
@@ -46,8 +49,10 @@ export function TableLookPanel() {
     } catch (err) { t.notify((err as Error).message); } finally { setBusy(false); }
   }
 
-  async function useImage(file: File) {
-    if (!file.type.startsWith('image/')) { t.notify('Pick a PNG, JPG or WebP image.'); return; }
+  async function useImage(picked: File) {
+    if (!picked.type.startsWith('image/')) { t.notify('Pick a PNG, JPG or WebP image.'); return; }
+    const file = await prepareImage(picked, IMAGE_TARGET_PX.table, (error, fix) => t.showHelp({ error, fix }));
+    if (!file) return;
     setBusy(true);
     try {
       const { assetUrl } = await uploadImage(file);

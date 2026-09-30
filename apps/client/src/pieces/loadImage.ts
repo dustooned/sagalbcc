@@ -6,6 +6,7 @@ import { parseGIF } from 'gifuct-js';
 import { uploadImage, uploadMedia } from '../net/api.ts';
 import { store } from '../net/tableStore.ts';
 import { actions } from './actions.ts';
+import { IMAGE_TARGET_PX, prepareImage } from './compressImage.ts';
 
 /** A bare dropped image lands at a sensible size, not edge-to-edge on the table. */
 const TARGET_SIDE_INCHES = 4;
@@ -64,9 +65,12 @@ function inspectImage(url: string): Promise<Inspection> {
 /** Still images, animated GIFs, and short WebM/MP4 loops (which play silently on the piece). */
 export const isTableMedia = (file: File) => /^image\/(png|jpeg|webp|gif)$/.test(file.type) || /^video\/(webm|mp4)$/.test(file.type) || /\.(gif|webm|mp4)$/i.test(file.name);
 
-export async function addImageFile(file: File) {
-  if (!isTableMedia(file)) { store.showHelp(mediaProblems.wrongType(file.name)); return; }
+export async function addImageFile(input: File) {
+  if (!isTableMedia(input)) { store.showHelp(mediaProblems.wrongType(input.name)); return; }
   if (store.kitProgress) return;
+  // Big photos are shrunk first (the student is asked); GIFs and clips pass straight through.
+  const file = await prepareImage(input, IMAGE_TARGET_PX.piece, (error, fix) => store.showHelp({ error, fix }));
+  if (!file) return;
   const video = file.type.startsWith('video/') || /\.(webm|mp4)$/i.test(file.name);
   const gif = file.type === 'image/gif' || /\.gif$/i.test(file.name);
   store.kitProgress = video ? 'Checking clip…' : 'Adding image…';
