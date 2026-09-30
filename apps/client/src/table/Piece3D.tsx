@@ -11,6 +11,7 @@ import { store } from '../net/tableStore.ts';
 import { actions } from '../pieces/actions.ts';
 import { beginDrag, localDrag } from './dragging.ts';
 import { ui } from './selection.ts';
+import { restHeight } from './settle.ts';
 import { backMaterial, boardEdgeMaterial, cutoutMaterial, edgeMaterial, frontMaterial, hiddenMaterial, highlightMaterial } from './textures.ts';
 
 const DEG = Math.PI / 180;
@@ -83,13 +84,24 @@ function ModelBody({ url, w, h, thickness, orient }: { url: string; w: number; h
     p.then(scene => {
       if (!live) return;
       const c = scene.clone(true);
-      // Turn it upright first, so fitting and seating on the felt use the turned shape.
+      // Size comes from the model standing as exported, so tipping it over never shrinks or
+      // grows it — a figure lying face down is as big as it was standing.
+      c.rotation.set(0, 0, 0);
+      c.updateMatrixWorld(true);
+      const upright = new THREE.Box3().setFromObject(c, true).getSize(new THREE.Vector3());
+      const s = Math.min(w / (upright.x || 1), h / (upright.z || 1));
+      // Then turn it, and seat it on the felt by its real vertices ("precise"): the quick box
+      // around each part's own bounds grows when a part is turned, which left tipped-over
+      // models hovering above the table.
       c.rotation.copy(ORIENTS[orient % 6] ?? ORIENTS[0]);
       c.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(c), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-      const s = Math.min(w / (size.x || 1), h / (size.z || 1));
+      const box = new THREE.Box3().setFromObject(c, true), mid = box.getCenter(new THREE.Vector3());
+      // Tipped onto its front, back or a side, it lies on its body; anything thin sticking out
+      // below (a racket, a sword) sinks into the felt instead of propping it up in the air.
+      // Upright and upside down sit on their lowest point, exactly as exported.
+      const floor = orient % 6 >= 2 ? restHeight(c) : box.min.y;
       c.scale.setScalar(s);
-      c.position.set(-mid.x * s, -box.min.y * s - thickness / 2, -mid.z * s);
+      c.position.set(-mid.x * s, -floor * s - thickness / 2, -mid.z * s);
       c.traverse(o => {
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh) return;
