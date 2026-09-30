@@ -3,10 +3,13 @@
 // piece/marker/note's own onPointerDown calls preventDefault() so its touch is never also read
 // here as a table drag. Starts looking from your own seat. The on-screen camera buttons
 // (hud/CameraPanel) drive the same view through `cameraControls`, so touch devices can orbit too.
+// Left-dragging empty table with the mouse draws a selection box (Shift adds to the selection);
+// on touch, the ⬚ Select button makes one finger do the same.
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { seatAngle } from '@kitforge/shared-types';
+import { store } from '../net/tableStore.ts';
 import { isDragging } from './dragging.ts';
 import { ui } from './selection.ts';
 import { registerProjector } from './tablePointer.ts';
@@ -49,6 +52,41 @@ export function CameraRig({ seat }: { seat: number }) {
     // onPointerDown calls preventDefault(), so a touch that grabbed something never lands here.
     const touches = new Map<number, { x: number; y: number }>();
     let pinch: { dist: number; mx: number; my: number; baseDist: number } | null = null;
+    let box: { id: number; x0: number; y0: number; add: boolean; moved: boolean } | null = null;
+
+    /** Every piece whose middle is inside the box. Boards only count when nothing else is in
+     *  it, so boxing cards that sit on a board doesn't pick up the board too. */
+    const piecesInBox = (x0: number, y0: number, x1: number, y1: number) => {
+      const r = el.getBoundingClientRect(), v = new THREE.Vector3();
+      const [l, rt, t, b] = [Math.min(x0, x1), Math.max(x0, x1), Math.min(y0, y1), Math.max(y0, y1)];
+      const hits = [...(store.state?.pieces.values() ?? [])].filter(p => {
+        if (p.lockedBy && p.lockedBy !== store.playerId) return false;
+        v.set(p.x, 0, p.z).project(camera);
+        const sx = r.left + ((v.x + 1) / 2) * r.width, sy = r.top + ((1 - v.y) / 2) * r.height;
+        return v.z < 1 && sx >= l && sx <= rt && sy >= t && sy <= b;
+      });
+      const loose = hits.filter(p => p.kind !== 'board');
+      return (loose.length ? loose : hits).map(p => p.id);
+    };
+    const startBox = (e: PointerEvent) => {
+      box = { id: e.pointerId, x0: e.clientX, y0: e.clientY, add: e.shiftKey, moved: false };
+    };
+    const moveBox = (e: PointerEvent) => {
+      if (!box || e.pointerId !== box.id) return false;
+      if (!box.moved && Math.hypot(e.clientX - box.x0, e.clientY - box.y0) < ORBIT_SLOP_PX) return true;
+      box.moved = true;
+      ui.setBox({ x0: box.x0, y0: box.y0, x1: e.clientX, y1: e.clientY });
+      return true;
+    };
+    const endBox = (e: PointerEvent) => {
+      if (!box || e.pointerId !== box.id) return false;
+      const b = box; box = null;
+      if (!b.moved) return true;
+      const ids = piecesInBox(b.x0, b.y0, e.clientX, e.clientY);
+      ui.select(b.add ? [...new Set([...ui.selected, ...ids])] : ids);
+      ui.setBox(null);
+      return true;
+    };
 
     const panBy = (dx: number, dy: number) => {
       const k = target.dist * 0.0016;
@@ -68,6 +106,7 @@ export function CameraRig({ seat }: { seat: number }) {
         // Holding or throwing something: the view stays put until it's down, so a second
         // finger can't spin the table mid-throw. Only this player's own camera is affected.
         if (isDragging()) return;
+        if (ui.boxMode && !touches.size && !box) { startBox(e); return; }
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (touches.size === 1) {
           orbit = { x: e.clientX, y: e.clientY, moved: false };
@@ -84,9 +123,12 @@ export function CameraRig({ seat }: { seat: number }) {
         el.setPointerCapture?.(e.pointerId);
       } else if (e.button === 2) {
         orbit = { x: e.clientX, y: e.clientY, moved: false };
+      } else if (e.button === 0 && !e.defaultPrevented) {
+        startBox(e);
       }
     };
     const onMove = (e: PointerEvent) => {
+      if (moveBox(e)) return;
       if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
         if (isDragging()) { touches.clear(); orbit = null; pinch = null; return; }
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -125,6 +167,7 @@ export function CameraRig({ seat }: { seat: number }) {
       panBy(dx, dy);
     };
     const onUp = (e: PointerEvent) => {
+      if (endBox(e)) return;
       if (e.pointerType === 'touch') {
         touches.delete(e.pointerId);
         if (touches.size < 2) pinch = null;
@@ -139,7 +182,7 @@ export function CameraRig({ seat }: { seat: number }) {
       }
       if (pan) { pan = null; el.releasePointerCapture?.(e.pointerId); }
     };
-    const onCancel = (e: PointerEvent) => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; if (touches.size === 0) orbit = null; };
+    const onCancel = (e: PointerEvent) => { if (box?.id === e.pointerId) { box = null; ui.setBox(null); } touches.delete(e.pointerId); if (touches.size < 2) pinch = null; if (touches.size === 0) orbit = null; };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Home' && !(e.target as HTMLElement)?.closest?.('input, textarea')) cameraControls.reset();
     };
@@ -157,7 +200,7 @@ export function CameraRig({ seat }: { seat: number }) {
       window.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey);
     };
-  }, [gl, seatYaw]);
+  }, [gl, seatYaw, camera]);
 
   useFrame((_, dt) => {
     const c = current.current, k = 1 - Math.exp(-dt * 12);

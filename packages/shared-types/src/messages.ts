@@ -10,12 +10,16 @@ export interface ClientMessages {
   dropMany: { items: { id: string; x: number; z: number }[] };
   stackAction: { id: string; action: StackAction };
   flip: { ids: string[] };
-  rotate: { ids: string[]; delta: 90 | -90 | 15 | -15 };
+  rotate: { ids: string[]; delta: 90 | -90 | 15 | -15 | 180 };
   /** Scale pieces by a factor (0.5–2 per step), kept between 0.4" and 30" on the long side. */
   resize: { ids: string[]; factor: number };
   tap: { ids: string[] };
   /** 3D models: cycle which side faces up (dir -1 = back one step). */
-  orient: { ids: string[]; dir?: 1 | -1 };
+  orient: { ids: string[]; dir?: 1 | -1; /** Jump straight to one of the 6 sides instead of stepping. */ set?: number };
+  /** Turn every piece face up (true) or face down (false), instead of toggling like flip. */
+  setFace: { ids: string[]; faceUp: boolean };
+  /** Pull pieces onto the first one's spot as one stack (shuffled if asked). */
+  gather: { ids: string[]; shuffle?: boolean };
   clone: { id: string };
   remove: { ids: string[] };
   /** Spawns every piece in the kit onto the table (scattered, boards centered). Replaces nothing —

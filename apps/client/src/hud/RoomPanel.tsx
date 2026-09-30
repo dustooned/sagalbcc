@@ -1,6 +1,6 @@
 // Top left: the rune (click to copy an invite link) and who's in your party.
 import { useState, type FormEvent } from 'react';
-import { SEAT_COLORS } from '@kitforge/shared-types';
+import { MAX_COUNTERS, SEAT_COLORS } from '@kitforge/shared-types';
 import { leaveTable } from '../net/connection.ts';
 import { copyInvite } from '../net/invite.ts';
 import { actions } from '../pieces/actions.ts';
@@ -8,15 +8,16 @@ import { useTable } from '../net/tableStore.ts';
 
 export function RoomPanel() {
   const t = useTable();
-  const state = t.state;
-  if (!state) return null;
-  const players = [...state.players.values()].sort((a, b) => a.seat - b.seat);
-  const counters = [...state.counterNames];
   // Which counter's name is being edited: '' = none, '+' = a new one.
   const [editing, setEditing] = useState('');
   const [draft, setDraft] = useState('');
   // Which counter value is being typed into, as `playerId:KEY`.
   const [typing, setTyping] = useState('');
+  // Hooks stay above this early return — React needs the same hooks on every render.
+  const state = t.state;
+  if (!state) return null;
+  const players = [...state.players.values()].sort((a, b) => a.seat - b.seat);
+  const counters = [...state.counterNames];
   const edit = (k: string) => { setEditing(k); setDraft(k === '+' ? '' : k); };
   const save = (e?: FormEvent) => {
     e?.preventDefault();
@@ -39,10 +40,10 @@ export function RoomPanel() {
         <span className="counter-count">
                 <button className="counter-name add" title="Remove the last counter" disabled={counters.length === 0}
                   onClick={() => { const last = counters[counters.length - 1]; if (last && confirm(`Remove ${last} for everyone?`)) actions.removeCounter(last); }}>−</button>
-                <button className="counter-name add" title="Add a point counter" disabled={counters.length >= 3} onClick={() => edit('+')}>＋</button>
+                <button className="counter-name add" title="Add a point counter" disabled={counters.length >= MAX_COUNTERS} onClick={() => edit('+')}>＋</button>
               </span>
       </div>
-      <table className="players">
+      <div className="players-scroll"><table className="players">
         <thead>
           <tr>
             <th />
@@ -85,7 +86,7 @@ export function RoomPanel() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       {editing && (
         <form className="counter-edit" onSubmit={save}>
           <input autoFocus maxLength={10} value={draft} placeholder="HP, GOLD, VP…" aria-label="Counter name"

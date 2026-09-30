@@ -5,7 +5,7 @@
 // faceUp only switches which image (front or back) is shown.
 import { randomInt } from 'node:crypto';
 import {
-  ATMOSPHERE_KINDS, BACKDROP_EFFECTS, BACKDROP_MODES, DIE_KINDS, DIE_SIDES, MAX_PLAYERS, clampToTable,
+  ATMOSPHERE_KINDS, BACKDROP_EFFECTS, BACKDROP_MODES, DIE_KINDS, DIE_SIDES, MAX_COUNTERS, MAX_PLAYERS, clampToTable,
   type MarkerKind, type NormalizedKit, type PieceDefinition, type PieceFace, type PieceKind,
 } from '@kitforge/shared-types';
 import { MarkerState, NoteState, PieceState, PlayerState, TableState } from './TableState.ts';
@@ -32,7 +32,7 @@ function withDefaults(state: TableState) { state.counterNames.push('SCORE'); ret
 
 export function appendLog(ctx: TableContext, text: string) {
   ctx.state.log.push(text);
-  while (ctx.state.log.length > 80) ctx.state.log.shift();
+  while (ctx.state.log.length > 150) ctx.state.log.shift();
 }
 
 const nameOf = (ctx: TableContext, playerId: string) => ctx.state.players.get(playerId)?.name ?? 'Someone';
@@ -305,6 +305,25 @@ export function stackAction(ctx: TableContext, playerId: string, id: unknown, ac
   return ok();
 }
 
+/** Pull pieces onto one spot as a single stack — the first id's spot, which is the piece the
+ *  player right-clicked or pointed at. Shuffled, it's "shuffle these cards into a deck". */
+export function gather(ctx: TableContext, playerId: string, ids: string[], shuffle: unknown): OpResult {
+  const picked = ids.map(id => ctx.state.pieces.get(id)).filter((p): p is PieceState => !!p);
+  const free = picked.filter(p => !lockedByOther(p, playerId));
+  if (free.length < 2) {
+    const blocked = picked.find(p => lockedByOther(p, playerId));
+    return fail(blocked ? lockNotice(ctx, blocked) : 'Select two or more pieces first.');
+  }
+  const anchor = free[0];
+  const pos = clampToTable(anchor.x, anchor.z, Math.max(...free.map(p => p.w)), Math.max(...free.map(p => p.h)));
+  const pile = [...free].sort((a, b) => a.order - b.order);
+  if (shuffle === true) shuffleInPlace(ctx, pile);
+  for (const p of pile) { p.x = pos.x; p.z = pos.z; p.rotation = anchor.rotation; bump(ctx, p); }
+  const what = pile.every(p => p.kind === 'card') ? 'cards' : 'pieces';
+  appendLog(ctx, `${nameOf(ctx, playerId)} ${shuffle === true ? 'shuffled' : 'gathered'} ${pile.length} ${what} into a stack.`);
+  return ok();
+}
+
 // ---------------------------------------------------------------- piece state
 
 function eachPiece(ctx: TableContext, playerId: string, ids: string[], fn: (piece: PieceState) => void): OpResult {
@@ -320,13 +339,20 @@ function eachPiece(ctx: TableContext, playerId: string, ids: string[], fn: (piec
   return ok();
 }
 
+export function setFace(ctx: TableContext, playerId: string, ids: string[], faceUp: unknown): OpResult {
+  if (typeof faceUp !== 'boolean') return fail();
+  let n = 0;
+  const res = eachPiece(ctx, playerId, ids, piece => { if (piece.faceUp !== faceUp) { piece.faceUp = faceUp; n++; } });
+  if (res.ok && n) appendLog(ctx, `${nameOf(ctx, playerId)} turned ${n === 1 ? 'a card' : `${n} cards`} face ${faceUp ? 'up' : 'down'}.`);
+  return res;
+}
 export function flip(ctx: TableContext, playerId: string, ids: string[]): OpResult {
   const labels: string[] = [];
   const res = eachPiece(ctx, playerId, ids, piece => { piece.faceUp = !piece.faceUp; labels.push(piece.faceUp ? labelOf(piece) : 'a card face-down'); });
   if (res.ok) appendLog(ctx, `${nameOf(ctx, playerId)} flipped ${labels.length === 1 ? labels[0] : `${labels.length} cards`}.`);
   return res;
 }
-const ROTATE_STEPS = [90, -90, 15, -15];
+const ROTATE_STEPS = [90, -90, 15, -15, 180];
 /** Smallest/largest a piece can be resized to, in inches (longer side). */
 const MIN_SIDE = 0.4, MAX_SIDE = 30;
 
@@ -347,9 +373,10 @@ export function rotate(ctx: TableContext, playerId: string, ids: string[], delta
   return eachPiece(ctx, playerId, ids, piece => { piece.rotation = (((piece.rotation + d) % 360) + 360) % 360; });
 }
 /** 3D models: step to the next of the 6 "which way is up" orientations. Cards/tokens ignore it. */
-export function orient(ctx: TableContext, playerId: string, ids: string[], dir: unknown): OpResult {
+export function orient(ctx: TableContext, playerId: string, ids: string[], dir: unknown, set?: unknown): OpResult {
+  const exact = typeof set === 'number' && Number.isInteger(set) && set >= 0 && set < 6 ? set : null;
   const step = dir === -1 ? 5 : 1;
-  return eachPiece(ctx, playerId, ids, piece => { if (faceOf(piece)?.model) piece.orient = (piece.orient + step) % 6; });
+  return eachPiece(ctx, playerId, ids, piece => { if (faceOf(piece)?.model) piece.orient = exact ?? (piece.orient + step) % 6; });
 }
 export function tap(ctx: TableContext, playerId: string, ids: string[]): OpResult {
   return eachPiece(ctx, playerId, ids, piece => { piece.tapped = !piece.tapped; });
@@ -467,7 +494,8 @@ export function rollMarker(ctx: TableContext, playerId: string, id: unknown): Op
   if (lockedByOther(m, playerId)) return fail(lockNotice(ctx, m, 'die'));
   m.value = 1 + ctx.randomInt(DIE_SIDES[m.kind as MarkerKind] ?? 6);
   m.rolls = (m.rolls + 1) % 65535;
-  appendLog(ctx, `${nameOf(ctx, playerId)} rolled a ${m.value}.`);
+  const die = m.kind === 'die' || m.kind === 'diePips' ? 'd6' : m.kind;
+  appendLog(ctx, `${nameOf(ctx, playerId)} rolled ${m.value} on a ${die}.`);
   return ok();
 }
 export function renameMarker(ctx: TableContext, playerId: string, id: unknown, label: unknown): OpResult {
@@ -566,7 +594,7 @@ export function clearTable(ctx: TableContext, actorId: string): OpResult {
 }
 
 // ---------------------------------------------------------------- point counters
-const COUNTER_NAME_MAX = 10, MAX_COUNTERS = 3, COUNTER_LIMIT = 9999;
+const COUNTER_NAME_MAX = 10, COUNTER_LIMIT = 9999;
 const cleanCounterName = (v: unknown) => (typeof v === 'string' ? v.replace(/[^\p{L}\p{N} _-]/gu, '').trim().toUpperCase().slice(0, COUNTER_NAME_MAX) : '');
 
 /** Change one player's counter by delta, or set it to value. Anyone can change anyone's — like TTS. */
@@ -578,8 +606,15 @@ export function setCounter(ctx: TableContext, actorId: string, msg: { playerId?:
   const raw = typeof msg.value === 'number' ? msg.value : before + (typeof msg.delta === 'number' ? msg.delta : 0);
   if (!Number.isFinite(raw)) return fail();
   const after = Math.max(-COUNTER_LIMIT, Math.min(COUNTER_LIMIT, Math.round(raw)));
+  if (after === before) return ok();
   p.counters.set(key, after);
-  if (typeof msg.value === 'number') appendLog(ctx, `${nameOf(ctx, actorId)} set ${p.name}'s ${key} to ${after}.`);
+  // Tapping + five times is one change in the log, not five: the same player nudging the same
+  // counter again replaces their last line.
+  const prefix = `${nameOf(ctx, actorId)} changed ${p.name}'s ${key} `;
+  const line = `${prefix}to ${after}.`;
+  const log = ctx.state.log;
+  if (log.length && log[log.length - 1].startsWith(prefix)) log[log.length - 1] = line;
+  else appendLog(ctx, line);
   return ok();
 }
 
@@ -590,7 +625,7 @@ export function addCounter(ctx: TableContext, actorId: string, name: unknown): O
   if (ctx.state.counterNames.length >= MAX_COUNTERS) return fail(`Up to ${MAX_COUNTERS} counters.`);
   ctx.state.counterNames.push(key);
   ctx.state.players.forEach(p => p.counters.set(key, 0));
-  appendLog(ctx, `${nameOf(ctx, actorId)} added a ${key} counter.`);
+  appendLog(ctx, `${nameOf(ctx, actorId)} added the ${key} counter.`);
   return ok();
 }
 

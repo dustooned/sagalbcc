@@ -10,10 +10,10 @@ import { ui, useUi, type MenuState } from '../table/selection.ts';
  *  sheet — but the buttons still work, acting on whatever's selected or last hovered. */
 function BackgroundMenu({ menu }: { menu: MenuState }) {
   const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
-  const ids = ui.targets(id => !!store.piece(id));
+  const ids = ui.ordered(ui.targets(id => !!store.piece(id)));
   const has = ids.length > 0;
   const many = ids.length > 1 ? ` (${ids.length})` : '';
-  const left = Math.min(menu.x, window.innerWidth - 220), top = Math.max(8, Math.min(menu.y, window.innerHeight - 220));
+  const left = Math.min(menu.x, window.innerWidth - 240), top = Math.max(8, Math.min(menu.y, window.innerHeight - 400));
   return (
     <>
       <div className="menu-catcher" onPointerDown={() => ui.openMenu(null)} onContextMenu={e => { e.preventDefault(); ui.openMenu(null); }} />
@@ -23,12 +23,14 @@ function BackgroundMenu({ menu }: { menu: MenuState }) {
         <li><button disabled={!has} onClick={run(() => actions.rotateLeft(ids))}>Rotate left <kbd>Q</kbd></button></li>
         <li><button disabled={!has} onClick={run(() => actions.rotateRight(ids))}>Rotate right <kbd>E</kbd></button></li>
         <li><button disabled={!has} onClick={run(() => actions.tap(ids))}>Tap / Untap <kbd>T</kbd></button></li>
+        <li><button disabled={!has} onClick={run(() => actions.shuffle(ids))}>Shuffle <kbd>R</kbd></button></li>
+        <li><button disabled={ids.length < 2} onClick={run(() => actions.gather(ids))}>Gather into a stack <kbd>G</kbd></button></li>
         <li><button disabled={!has} onClick={() => actions.turnRight(ids)}>Turn 15° <kbd>Shift+Q/E</kbd></button></li>
         <li><button disabled={!has} onClick={() => actions.bigger(ids)}>Bigger <kbd>+</kbd></button></li>
         <li><button disabled={!has} onClick={() => actions.smaller(ids)}>Smaller <kbd>−</kbd></button></li>
         <li><button disabled={!has} className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete <kbd>Del</kbd></button></li>
         <li className="sep" />
-        <li className="menu-head">Escape <kbd>Esc</kbd> deselects</li>
+        <li className="menu-head">Drag empty table to box-select · <kbd>Ctrl+A</kbd> all · <kbd>Esc</kbd> none</li>
       </menu>
     </>
   );
@@ -73,12 +75,13 @@ export function ContextMenu() {
   if (menu.source === 'marker' || menu.source === 'note') return <TokenMenu menu={menu} />;
   const piece = t.piece(menu.id);
   if (!piece) return null;
-  const ids = u.selected.has(menu.id) ? [...u.selected] : [menu.id];
+  // The piece that was right-clicked goes first: a gather or shuffle stacks onto its spot.
+  const ids = u.selected.has(menu.id) ? [menu.id, ...[...u.selected].filter(i => i !== menu.id)] : [menu.id];
   const many = ids.length > 1 ? ` (${ids.length})` : '';
   const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
   const stack = stackMembers(t.state, piece);
   const isModel = (() => { try { return !!(JSON.parse(piece.face) as { model?: string }).model; } catch { return false; } })();
-  const height = 380 + (stack.length > 1 ? 140 : 0);
+  const height = 420 + (stack.length > 1 ? 140 : 0) + (ids.length > 1 ? 130 : 0) + (isModel ? 40 : 0);
   const left = Math.min(menu.x, window.innerWidth - 220), topPx = Math.max(8, Math.min(menu.y, window.innerHeight - height));
 
   return (
@@ -87,10 +90,20 @@ export function ContextMenu() {
       <menu className="context-menu" style={{ left, top: topPx }}>
         {stack.length > 1 && <>
           <li className="menu-head">Stack · {stack.length}</li>
-          <li><button onClick={run(() => actions.stack(menu.id, 'shuffle'))}>Shuffle stack</button></li>
+          <li><button onClick={run(() => actions.stack(menu.id, 'shuffle'))}>Shuffle stack {ids.length === 1 && <kbd>R</kbd>}</button></li>
           <li><button onClick={run(() => actions.stack(menu.id, 'flip'))}>Flip whole stack</button></li>
           <li><button onClick={run(() => actions.stack(menu.id, 'spread'))}>Spread out</button></li>
           <li><button onClick={run(() => ui.select(stack.map(c => c.id)))}>Select whole stack (then drag)</button></li>
+          <li className="sep" />
+        </>}
+        {ids.length > 1 && <>
+          <li className="menu-head">Selection · {ids.length}</li>
+          <li><button onClick={run(() => actions.shuffle(ids))}>Shuffle into a stack <kbd>R</kbd></button></li>
+          <li><button onClick={run(() => actions.gather(ids))}>Gather into a stack <kbd>G</kbd></button></li>
+          <li className="menu-row">
+            <button onClick={run(() => actions.setFace(ids, true))}>▲ All face up</button>
+            <button onClick={run(() => actions.setFace(ids, false))}>▼ All face down</button>
+          </li>
           <li className="sep" />
         </>}
         <li><button onClick={run(() => actions.flip(ids))}>Flip{many} <kbd>F</kbd></button></li>
@@ -101,10 +114,20 @@ export function ContextMenu() {
         <li className="menu-row">
           <button onClick={() => actions.turnLeft(ids)} title="Shift+Q">↺ 15°</button>
           <button onClick={() => actions.turnRight(ids)} title="Shift+E">↻ 15°</button>
+          <button onClick={() => actions.turnAround(ids)} title="Turn it to face the other way">⟲ 180°</button>
         </li>
-        {isModel && (
-          <li><button onClick={() => actions.orient(ids)} title="U (Shift+U goes back)">⤾ Stand upright — next side <kbd>U</kbd></button></li>
-        )}
+        {isModel && <>
+          <li className="menu-head">Stand it…</li>
+          <li className="menu-row">
+            <button onClick={() => actions.standOn(ids, 0)} title="As it was exported">⬆ Upright</button>
+            <button onClick={() => actions.standOn(ids, 1)}>⬇ Upside down</button>
+          </li>
+          <li className="menu-row">
+            <button onClick={() => actions.standOn(ids, 4)}>⤵ On its side</button>
+            <button onClick={() => actions.standOn(ids, 2)}>⤴ On its front</button>
+          </li>
+          <li><button onClick={() => actions.orient(ids)} title="Shift+U goes back">⤾ Next side <kbd>U</kbd></button></li>
+        </>}
         <li className="menu-row">
           <button onClick={() => actions.smaller(ids)} title="− key">− Smaller</button>
           <button onClick={() => actions.bigger(ids)} title="+ key">＋ Bigger</button>

@@ -2,6 +2,8 @@
 // 1 world unit = 1 inch, so a piece's synced w/h match its Kit Forge size directly.
 
 export const MAX_PLAYERS = 8;
+/** Point counter columns (SCORE, HP, GOLD…) every player gets. */
+export const MAX_COUNTERS = 6;
 export const ROOM_NAME = 'kit_table';
 
 export const TABLE_W = 60; // inches — room for a 24x24" board plus scattered pieces around it

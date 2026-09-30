@@ -38,7 +38,7 @@ export function Tabletop() {
       // caused shimmering/z-fighting between close-together surfaces (felt vs. table image, the
       // frame's edge strips) when zoomed out.
       camera={{ fov: 42, near: 1, far: 140 }}
-      onPointerMissed={e => { if (e.button === 0) ui.clear(); }}
+      onPointerMissed={e => { if (e.button === 0 && !ui.justBoxed() && !e.shiftKey) ui.clear(); }}
       onContextMenu={e => {
         // A piece/marker/note's own onContextMenu already handled this and called
         // preventDefault() — only open the background hotkeys menu when nothing else did.

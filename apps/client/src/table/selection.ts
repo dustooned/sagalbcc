@@ -8,6 +8,11 @@ class UiState {
   hovered: string | null = null;
   menu: MenuState | null = null;
   spaceHeld = false;
+  /** Touch "Select" mode: one finger draws a selection box instead of turning the camera. */
+  boxMode = false;
+  /** Screen rectangle being dragged out right now, for the on-screen box. */
+  box: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  private lastBox = 0;
   version = 0;
   private lastOrbit = 0;
   private listeners = new Set<() => void>();
@@ -27,6 +32,13 @@ class UiState {
     if (menu && this.justOrbited()) return;
     this.menu = menu; this.changed();
   }
+  setBoxMode(on: boolean) { this.boxMode = on; this.changed(); }
+  setBox(box: UiState['box']) { this.box = box; if (!box) this.lastBox = performance.now(); this.changed(); }
+  /** True right after a selection box — its mouse-up also fires a "click on nothing", which
+   *  would otherwise clear the selection it just made. */
+  justBoxed() { return performance.now() - this.lastBox < 300; }
+  /** The piece the player is pointing at goes first — group actions stack onto its spot. */
+  ordered(ids: string[]) { const h = this.hovered; return h && ids.includes(h) ? [h, ...ids.filter(i => i !== h)] : ids; }
   /** Called when a right-drag orbit ends, so its button release doesn't also open a menu. */
   markOrbit() { this.lastOrbit = performance.now(); }
 
