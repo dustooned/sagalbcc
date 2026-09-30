@@ -34,8 +34,9 @@ function useTableKeys(toggleHud: () => void) {
       if (e.ctrlKey || e.metaKey) return;
       if (e.code === 'Space') { ui.spaceHeld = true; e.preventDefault(); return; }
       const ids = ui.ordered(ui.targets(id => !!store.piece(id)));
-      // 3D models: 1–4 pick a side directly (by key position, so Shift doesn't turn 1 into !).
-      const side = { Digit1: 0, Digit2: 1, Digit3: 4, Digit4: 2 }[e.code];
+      // 3D models: 1–6 pick a side directly (by key position, so Shift doesn't turn 1 into !):
+      // upright, upside down, face down, face up, left side, right side.
+      const side = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 5, Digit6: 4 }[e.code];
       if (side !== undefined && !e.shiftKey) { actions.standOn(ids, side); return; }
       if (e.key === '?') { ui.setKeysOpen(!ui.keysOpen); return; }
       switch (e.key.toLowerCase()) {

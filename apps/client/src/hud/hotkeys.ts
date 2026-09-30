@@ -20,8 +20,8 @@ export const HOTKEYS: { group: string; keys: [string[], string][] }[] = [
     [['U', '/', 'Shift', 'U'], 'Next / previous side up'],
     [['1'], 'Stand upright'],
     [['2'], 'Upside down'],
-    [['3'], 'On its side'],
-    [['4'], 'On its front'],
+    [['3', '/', '4'], 'Tip over face down / face up'],
+    [['5', '/', '6'], 'Tip over onto its left / right side'],
   ] },
   { group: 'Selecting', keys: [
     [['Shift', 'drag'], 'Box select on empty table — adds to the selection'],

@@ -82,7 +82,7 @@ export function ContextMenu() {
   const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
   const stack = stackMembers(t.state, piece);
   const isModel = (() => { try { return !!(JSON.parse(piece.face) as { model?: string }).model; } catch { return false; } })();
-  const height = 420 + (stack.length > 1 ? 140 : 0) + (ids.length > 1 ? 130 : 0) + (isModel ? 40 : 0);
+  const height = 420 + (stack.length > 1 ? 140 : 0) + (ids.length > 1 ? 130 : 0) + (isModel ? 200 : 0);
   const left = Math.min(menu.x, window.innerWidth - 220), topPx = Math.max(8, Math.min(menu.y, window.innerHeight - height));
 
   return (
@@ -123,9 +123,14 @@ export function ContextMenu() {
             <button onClick={() => actions.standOn(ids, 0)} title="1 — as it was exported">⬆ Upright <kbd>1</kbd></button>
             <button onClick={() => actions.standOn(ids, 1)} title="2">⬇ Upside down <kbd>2</kbd></button>
           </li>
+          <li className="menu-head">Tip it over…</li>
           <li className="menu-row">
-            <button onClick={() => actions.standOn(ids, 4)} title="3">⤵ On side <kbd>3</kbd></button>
-            <button onClick={() => actions.standOn(ids, 2)} title="4">⤴ On front <kbd>4</kbd></button>
+            <button onClick={() => actions.standOn(ids, 2)} title="3 — lying on its front">▼ Face down <kbd>3</kbd></button>
+            <button onClick={() => actions.standOn(ids, 3)} title="4 — lying on its back">▲ Face up <kbd>4</kbd></button>
+          </li>
+          <li className="menu-row">
+            <button onClick={() => actions.standOn(ids, 5)} title="5 — lying on its left side">◀ Left side <kbd>5</kbd></button>
+            <button onClick={() => actions.standOn(ids, 4)} title="6 — lying on its right side">▶ Right side <kbd>6</kbd></button>
           </li>
           <li><button onClick={() => actions.orient(ids)} title="Shift+U goes back">⤾ Next side <kbd>U</kbd></button></li>
         </>}
