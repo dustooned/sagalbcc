@@ -44,7 +44,8 @@ export function Tabletop() {
         // preventDefault() — only open the background hotkeys menu when nothing else did.
         if (e.defaultPrevented) return;
         e.preventDefault();
-        if (ui.justOrbited()) return;
+        // A touch long-press that became a selection box isn't a menu request.
+        if (ui.justOrbited() || ui.box || ui.justBoxed()) return;
         ui.openMenu({ x: e.clientX, y: e.clientY, id: '', source: 'background' });
       }}
       scene={{ background: null }}

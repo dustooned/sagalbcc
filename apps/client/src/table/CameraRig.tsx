@@ -5,7 +5,7 @@
 // (hud/CameraPanel) drive the same view through `cameraControls`, so touch devices can orbit too.
 // Shift+drag on empty table, or Ctrl/⌘+drag from anywhere (even on a piece), draws a selection
 // box that adds to the selection. A plain drag on the table does nothing;
-// on touch, the ⬚ Select button makes one finger do the same.
+// on touch, hold one finger still for a moment and then drag (or turn on the ⬚ Select button).
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -19,6 +19,8 @@ const DEG = Math.PI / 180;
 const DEFAULT_PITCH = 58, MIN_PITCH = 18, MAX_PITCH = 89;
 const DEFAULT_DIST = 26, MIN_DIST = 6, MAX_DIST = 60;
 const ORBIT_SLOP_PX = 4;
+/** Touch: hold a finger this long without moving to start a selection box instead of orbiting. */
+const HOLD_TO_BOX_MS = 450, HOLD_SLOP_PX = 10;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 interface View { tx: number; tz: number; dist: number; yaw: number; pitch: number }
@@ -54,6 +56,22 @@ export function CameraRig({ seat }: { seat: number }) {
     const touches = new Map<number, { x: number; y: number }>();
     let pinch: { dist: number; mx: number; my: number; baseDist: number } | null = null;
     let box: { id: number; x0: number; y0: number; add: boolean; moved: boolean } | null = null;
+    // Touch: a finger held still on empty table turns into a selection box (drag = orbit as usual).
+    let hold: { id: number; x: number; y: number; timer: number } | null = null;
+    const cancelHold = () => { if (hold) { clearTimeout(hold.timer); hold = null; } };
+    const armHold = (e: PointerEvent) => {
+      cancelHold();
+      const h = { id: e.pointerId, x: e.clientX, y: e.clientY, timer: 0 };
+      h.timer = window.setTimeout(() => {
+        if (hold !== h || touches.size !== 1) return;
+        hold = null;
+        touches.delete(h.id); orbit = null;
+        box = { id: h.id, x0: h.x, y0: h.y, add: true, moved: true };
+        ui.setBox({ x0: h.x, y0: h.y, x1: h.x, y1: h.y });
+        if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(15);
+      }, HOLD_TO_BOX_MS);
+      hold = h;
+    };
 
     /** Every piece whose middle is inside the box. Boards only count when nothing else is in
      *  it, so boxing cards that sit on a board doesn't pick up the board too. */
@@ -112,7 +130,9 @@ export function CameraRig({ seat }: { seat: number }) {
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (touches.size === 1) {
           orbit = { x: e.clientX, y: e.clientY, moved: false };
+          armHold(e);
         } else if (touches.size === 2) {
+          cancelHold();
           orbit = null;
           const [a, b] = [...touches.values()];
           pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, baseDist: target.dist };
@@ -133,7 +153,8 @@ export function CameraRig({ seat }: { seat: number }) {
     const onMove = (e: PointerEvent) => {
       if (moveBox(e)) return;
       if (e.pointerType === 'touch' && touches.has(e.pointerId)) {
-        if (isDragging()) { touches.clear(); orbit = null; pinch = null; return; }
+        if (isDragging()) { touches.clear(); orbit = null; pinch = null; cancelHold(); return; }
+        if (hold && e.pointerId === hold.id && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > HOLD_SLOP_PX) cancelHold();
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (touches.size >= 2) {
           const [a, b] = [...touches.values()];
@@ -172,6 +193,7 @@ export function CameraRig({ seat }: { seat: number }) {
     const onUp = (e: PointerEvent) => {
       if (endBox(e)) return;
       if (e.pointerType === 'touch') {
+        if (hold?.id === e.pointerId) cancelHold();
         touches.delete(e.pointerId);
         if (touches.size < 2) pinch = null;
         if (touches.size === 0) orbit = null;
@@ -185,7 +207,7 @@ export function CameraRig({ seat }: { seat: number }) {
       }
       if (pan) { pan = null; el.releasePointerCapture?.(e.pointerId); }
     };
-    const onCancel = (e: PointerEvent) => { if (box?.id === e.pointerId) { box = null; ui.setBox(null); } touches.delete(e.pointerId); if (touches.size < 2) pinch = null; if (touches.size === 0) orbit = null; };
+    const onCancel = (e: PointerEvent) => { if (hold?.id === e.pointerId) cancelHold(); if (box?.id === e.pointerId) { box = null; ui.setBox(null); } touches.delete(e.pointerId); if (touches.size < 2) pinch = null; if (touches.size === 0) orbit = null; };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Home' && !(e.target as HTMLElement)?.closest?.('input, textarea')) cameraControls.reset();
     };

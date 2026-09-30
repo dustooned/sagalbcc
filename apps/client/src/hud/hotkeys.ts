@@ -26,6 +26,7 @@ export const HOTKEYS: { group: string; keys: [string[], string][] }[] = [
   { group: 'Selecting', keys: [
     [['Shift', 'drag'], 'Box select on empty table — adds to the selection'],
     [['Ctrl', 'drag'], 'Box select from anywhere, even starting on a piece'],
+    [['Touch', 'hold', 'drag'], 'Box select on phones and tablets — hold a finger still, then drag'],
     [['Shift', 'click'], 'Add or remove one piece'],
     [['Ctrl', 'A'], 'Select everything'],
     [['Esc'], 'Select nothing'],
