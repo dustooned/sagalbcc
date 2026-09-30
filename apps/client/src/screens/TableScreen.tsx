@@ -1,5 +1,5 @@
 // The table: 3D pieces fill the screen, small HUD panels sit in the corners.
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { actions } from '../pieces/actions.ts';
 import { addImageFile, isTableMedia } from '../pieces/loadImage.ts';
 import { addModelFile } from '../pieces/loadModel.ts';
@@ -11,6 +11,7 @@ import { ContextMenu } from '../hud/ContextMenu.tsx';
 import { EmptyTable } from '../hud/EmptyTable.tsx';
 import { HelpDialog } from '../hud/HelpDialog.tsx';
 import { LogPanel } from '../hud/LogPanel.tsx';
+import { ShortcutsSheet } from '../hud/ShortcutsSheet.tsx';
 import { Notices } from '../hud/Notices.tsx';
 import { RoomPanel } from '../hud/RoomPanel.tsx';
 import { TableLookPanel } from '../hud/TableLookPanel.tsx';
@@ -18,7 +19,8 @@ import { Toolbar } from '../hud/Toolbar.tsx';
 import { ui, useUi } from '../table/selection.ts';
 import { Tabletop } from '../table/Tabletop.tsx';
 
-function useTableKeys() {
+/** Every table shortcut. hud/hotkeys.ts lists them for the ? sheet — keep the two in step. */
+function useTableKeys(toggleHud: () => void) {
   useEffect(() => {
     const typing = (e: KeyboardEvent) => !!(e.target as HTMLElement)?.closest?.('input, textarea, select');
     const down = (e: KeyboardEvent) => {
@@ -32,8 +34,17 @@ function useTableKeys() {
       if (e.ctrlKey || e.metaKey) return;
       if (e.code === 'Space') { ui.spaceHeld = true; e.preventDefault(); return; }
       const ids = ui.ordered(ui.targets(id => !!store.piece(id)));
+      // 3D models: 1–4 pick a side directly (by key position, so Shift doesn't turn 1 into !).
+      const side = { Digit1: 0, Digit2: 1, Digit3: 4, Digit4: 2 }[e.code];
+      if (side !== undefined && !e.shiftKey) { actions.standOn(ids, side); return; }
+      if (e.key === '?') { ui.setKeysOpen(!ui.keysOpen); return; }
       switch (e.key.toLowerCase()) {
-        case 'f': actions.flip(ids); break;
+        case 'f': if (e.shiftKey) actions.faceAll(ids); else actions.flip(ids); break;
+        case 'a': actions.turnAround(ids); break;
+        case 'c': actions.cloneAll(ids); break;
+        case 'n': { const text = prompt('Note for the table:'); if (text?.trim()) actions.addNote(text); break; }
+        case 'l': window.dispatchEvent(new Event('saga:toggle-log')); break;
+        case 'h': toggleHud(); break;
         case 'q': if (e.shiftKey) actions.turnLeft(ids); else actions.rotateLeft(ids); break;
         case 'e': if (e.shiftKey) actions.turnRight(ids); else actions.rotateRight(ids); break;
         case '=': case '+': actions.bigger(ids); break;
@@ -46,7 +57,7 @@ function useTableKeys() {
         case 'backspace':
           if (ids.length && (ids.length === 1 || confirm(`Delete ${ids.length} pieces?`))) { actions.remove(ids); ui.select([]); }
           break;
-        case 'escape': ui.clear(); break;
+        case 'escape': if (ui.keysOpen) ui.setKeysOpen(false); else ui.clear(); break;
       }
     };
     const up = (e: KeyboardEvent) => { if (e.code === 'Space') ui.spaceHeld = false; };
@@ -55,7 +66,7 @@ function useTableKeys() {
     window.addEventListener('keyup', up);
     window.addEventListener('blur', blur);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); window.removeEventListener('blur', blur); };
-  }, []);
+  }, [toggleHud]);
 }
 
 /** Drop a .kittable.json, or a plain image, anywhere on the page to load it. */
@@ -107,13 +118,14 @@ function SelectModeButton() {
 
 export function TableScreen() {
   const t = useTable();
-  useTableKeys();
+  const [hudHidden, setHudHidden] = useState(false);
+  const toggleHud = useCallback(() => setHudHidden(h => !h), []);
+  useTableKeys(toggleHud);
   const dropping = useKitDrop();
   const roomCode = t.state?.roomCode ?? '';
   useEffect(() => { if (roomCode) showRoomInAddressBar(roomCode); }, [roomCode]);
   // A clear view of the table, one tap away — most useful on a small screen where the panels
   // cover real board space. Per-viewer only; each tab starts with the HUD shown.
-  const [hudHidden, setHudHidden] = useState(false);
 
   return (
     <main className="table-screen">
@@ -132,6 +144,7 @@ export function TableScreen() {
       <SelectModeButton />
       <ContextMenu />
       <HelpDialog />
+      <ShortcutsSheet />
       <button
         className="hud-toggle"
         title={hudHidden ? 'Show panels' : 'Hide panels'}

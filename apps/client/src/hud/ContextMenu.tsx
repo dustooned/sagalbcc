@@ -30,6 +30,7 @@ function BackgroundMenu({ menu }: { menu: MenuState }) {
         <li><button disabled={!has} onClick={() => actions.smaller(ids)}>Smaller <kbd>−</kbd></button></li>
         <li><button disabled={!has} className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete <kbd>Del</kbd></button></li>
         <li className="sep" />
+        <li><button onClick={run(() => ui.setKeysOpen(true))}>All shortcuts <kbd>?</kbd></button></li>
         <li className="menu-head">Drag empty table to box-select · <kbd>Ctrl+A</kbd> all · <kbd>Esc</kbd> none</li>
       </menu>
     </>
@@ -101,8 +102,8 @@ export function ContextMenu() {
           <li><button onClick={run(() => actions.shuffle(ids))}>Shuffle into a stack <kbd>R</kbd></button></li>
           <li><button onClick={run(() => actions.gather(ids))}>Gather into a stack <kbd>G</kbd></button></li>
           <li className="menu-row">
-            <button onClick={run(() => actions.setFace(ids, true))}>▲ Face up</button>
-            <button onClick={run(() => actions.setFace(ids, false))}>▼ Face down</button>
+            <button onClick={run(() => actions.setFace(ids, true))} title="Shift+F">▲ Face up</button>
+            <button onClick={run(() => actions.setFace(ids, false))} title="Shift+F">▼ Face down</button>
           </li>
           <li className="sep" />
         </>}
@@ -114,17 +115,17 @@ export function ContextMenu() {
         <li className="menu-row">
           <button onClick={() => actions.turnLeft(ids)} title="Shift+Q">↺ 15°</button>
           <button onClick={() => actions.turnRight(ids)} title="Shift+E">↻ 15°</button>
-          <button onClick={() => actions.turnAround(ids)} title="Turn it to face the other way">⟲ 180°</button>
+          <button onClick={() => actions.turnAround(ids)} title="A — turn it to face the other way">⟲ 180°</button>
         </li>
         {isModel && <>
           <li className="menu-head">Stand it…</li>
           <li className="menu-row">
-            <button onClick={() => actions.standOn(ids, 0)} title="As it was exported">⬆ Upright</button>
-            <button onClick={() => actions.standOn(ids, 1)}>⬇ Upside down</button>
+            <button onClick={() => actions.standOn(ids, 0)} title="1 — as it was exported">⬆ Upright <kbd>1</kbd></button>
+            <button onClick={() => actions.standOn(ids, 1)} title="2">⬇ Upside down <kbd>2</kbd></button>
           </li>
           <li className="menu-row">
-            <button onClick={() => actions.standOn(ids, 4)}>⤵ On its side</button>
-            <button onClick={() => actions.standOn(ids, 2)}>⤴ On its front</button>
+            <button onClick={() => actions.standOn(ids, 4)} title="3">⤵ On side <kbd>3</kbd></button>
+            <button onClick={() => actions.standOn(ids, 2)} title="4">⤴ On front <kbd>4</kbd></button>
           </li>
           <li><button onClick={() => actions.orient(ids)} title="Shift+U goes back">⤾ Next side <kbd>U</kbd></button></li>
         </>}
@@ -133,7 +134,7 @@ export function ContextMenu() {
           <button onClick={() => actions.bigger(ids)} title="+ key">＋ Bigger</button>
         </li>
         <li className="sep" />
-        <li><button onClick={run(() => actions.clone(menu.id))}>Clone</button></li>
+        <li><button onClick={run(() => actions.cloneAll(ids))}>Clone{many} <kbd>C</kbd></button></li>
         <li><button className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete{many} <kbd>Del</kbd></button></li>
       </menu>
     </>

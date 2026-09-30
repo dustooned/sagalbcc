@@ -233,3 +233,14 @@ a.btn { color: inherit; text-decoration: none; display: inline-block; }
 
 /* ---------- counters: up to six columns scroll sideways instead of covering the table ---------- */
 .players-scroll { max-width: min(560px, calc(100vw - 24px)); overflow-x: auto; }
+
+/* ---------- ? shortcuts sheet ---------- */
+.keys-sheet { width: min(720px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; padding: 18px 20px; display: grid; gap: 12px; }
+.keys-sheet header { display: flex; justify-content: space-between; align-items: center; }
+.keys-sheet h2 { margin: 0; font-size: 17px; }
+.keys-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px 20px; align-items: start; }
+.keys-groups table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.keys-groups caption { text-align: left; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; padding-bottom: 4px; }
+.keys-groups td { padding: 3px 0; vertical-align: top; }
+.keys-groups td:first-child { white-space: nowrap; padding-right: 12px; width: 1%; }
+.keys-sheet kbd { margin: 0 2px 0 0; min-width: 1.4em; text-align: center; border-bottom-width: 2px; font: 700 11px/1.6 var(--font); color: var(--text); background: #1b1b24; }

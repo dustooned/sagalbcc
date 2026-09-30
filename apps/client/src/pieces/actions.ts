@@ -27,6 +27,14 @@ export const actions = {
   },
   gather: (ids: string[]) => ids.length > 1 && store.send('gather', { ids }),
   clone: (id: string) => store.send('clone', { id }),
+  /** Clone several at once (capped so a held key can't flood the table). */
+  cloneAll: (ids: string[]) => { for (const id of ids.slice(0, 20)) store.send('clone', { id }); },
+  /** Shift+F: everything face down — or, if it already is, everything face up. */
+  faceAll: (ids: string[]) => {
+    if (!ids.length) return;
+    const anyUp = ids.some(id => store.piece(id)?.faceUp);
+    store.send('setFace', { ids, faceUp: !anyUp });
+  },
   remove: (ids: string[]) => ids.length && store.send('remove', { ids }),
   loadKit: (kit: NormalizedKit, definitions: PieceDefinition[]) => store.send('loadKit', { kit, definitions }),
   stack: (id: string, action: StackAction) => store.send('stackAction', { id, action }),

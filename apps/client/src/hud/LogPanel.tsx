@@ -6,6 +6,12 @@ import { useTable } from '../net/tableStore.ts';
 export function LogPanel() {
   const t = useTable();
   const [open, setOpen] = useState(false);
+  // L toggles it from the keyboard.
+  useEffect(() => {
+    const toggle = () => setOpen(o => !o);
+    window.addEventListener('saga:toggle-log', toggle);
+    return () => window.removeEventListener('saga:toggle-log', toggle);
+  }, []);
   const list = useRef<HTMLOListElement>(null);
   const lines = t.state ? [...t.state.log] : [];
   const last = lines[lines.length - 1] ?? '';
@@ -18,7 +24,7 @@ export function LogPanel() {
 
   return (
     <section className={`hud-panel log-panel ${open ? 'open' : ''}`} aria-label="Table log">
-      <button className="tools-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+      <button className="tools-head" onClick={() => setOpen(o => !o)} aria-expanded={open} title="Log (L)">
         📜<span className="head-label"> LOG</span>
         {!open && last && <span className="log-last">{last}</span>}
         <span>{open ? '▾' : '▸'}</span>

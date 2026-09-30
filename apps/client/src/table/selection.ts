@@ -10,6 +10,8 @@ class UiState {
   spaceHeld = false;
   /** Touch "Select" mode: one finger draws a selection box instead of turning the camera. */
   boxMode = false;
+  /** The "?" keyboard shortcuts sheet. */
+  keysOpen = false;
   /** Screen rectangle being dragged out right now, for the on-screen box. */
   box: { x0: number; y0: number; x1: number; y1: number } | null = null;
   private lastBox = 0;
@@ -32,6 +34,7 @@ class UiState {
     if (menu && this.justOrbited()) return;
     this.menu = menu; this.changed();
   }
+  setKeysOpen(on: boolean) { this.keysOpen = on; this.changed(); }
   setBoxMode(on: boolean) { this.boxMode = on; this.changed(); }
   setBox(box: UiState['box']) { this.box = box; if (!box) this.lastBox = performance.now(); this.changed(); }
   /** True right after a selection box — its mouse-up also fires a "click on nothing", which
