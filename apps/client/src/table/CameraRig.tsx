@@ -3,8 +3,8 @@
 // piece/marker/note's own onPointerDown calls preventDefault() so its touch is never also read
 // here as a table drag. Starts looking from your own seat. The on-screen camera buttons
 // (hud/CameraPanel) drive the same view through `cameraControls`, so touch devices can orbit too.
-// Left-dragging empty table with the mouse draws a selection box (Shift adds to the selection);
-// Ctrl/⌘+drag adds too and can start anywhere, even on top of a piece;
+// Shift+drag on empty table, or Ctrl/⌘+drag from anywhere (even on a piece), draws a selection
+// box that adds to the selection. A plain drag on the table does nothing;
 // on touch, the ⬚ Select button makes one finger do the same.
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
@@ -125,7 +125,8 @@ export function CameraRig({ seat }: { seat: number }) {
         el.setPointerCapture?.(e.pointerId);
       } else if (e.button === 2) {
         orbit = { x: e.clientX, y: e.clientY, moved: false };
-      } else if (e.button === 0 && !e.defaultPrevented) {
+      } else if (e.button === 0 && !e.defaultPrevented && (e.shiftKey || e.ctrlKey || e.metaKey)) {
+        // Box select only while a modifier is held, so a stray drag on the table does nothing.
         startBox(e);
       }
     };

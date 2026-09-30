@@ -31,7 +31,7 @@ function BackgroundMenu({ menu }: { menu: MenuState }) {
         <li><button disabled={!has} className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete <kbd>Del</kbd></button></li>
         <li className="sep" />
         <li><button onClick={run(() => ui.setKeysOpen(true))}>All shortcuts <kbd>?</kbd></button></li>
-        <li className="menu-head">Drag empty table to box-select · <kbd>Ctrl+A</kbd> all · <kbd>Esc</kbd> none</li>
+        <li className="menu-head"><kbd>Shift</kbd>/<kbd>Ctrl</kbd>+drag box-selects · <kbd>Ctrl+A</kbd> all · <kbd>Esc</kbd> none</li>
       </menu>
     </>
   );
