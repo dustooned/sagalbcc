@@ -43,17 +43,25 @@ function parseMtl(text: string): Map<string, MtlDef> {
   return out;
 }
 
-/** Every dropped file, plus everything inside any dropped .zip, by lower-case file name. */
+/** Every dropped file, plus everything inside any dropped .zip, by lower-case file name. Two
+ *  files with the same name in different folders (a "2P" colour variant, say): the one nearest
+ *  the top of the zip wins, since that's the one sitting next to the .obj. */
 async function gather(files: File[]): Promise<Map<string, Blob>> {
   const all = new Map<string, Blob>();
+  const depthOf = new Map<string, number>();
+  const put = (path: string, blob: Blob) => {
+    const key = baseName(path), depth = path.split(/[\\/]/).length;
+    if ((depthOf.get(key) ?? Infinity) <= depth) return;
+    all.set(key, blob); depthOf.set(key, depth);
+  };
   for (const f of files) {
     if (/\.zip$/i.test(f.name)) {
       const entries = unzipSync(new Uint8Array(await f.arrayBuffer()));
       for (const [path, data] of Object.entries(entries)) {
         if (path.endsWith('/') || path.startsWith('__MACOSX/')) continue;
-        all.set(baseName(path), new Blob([data]));
+        put(path, new Blob([data]));
       }
-    } else all.set(baseName(f.name), f);
+    } else put(f.name, f);
   }
   return all;
 }
@@ -103,10 +111,14 @@ export async function objBundleToGlb(files: File[], opts: { shrink: boolean }): 
           const bmp = await createImageBitmap(blob);
           const tex = new THREE.Texture(bmp as unknown as HTMLImageElement);
           tex.flipY = true; // OBJ texture coordinates start bottom-left
+          // OBJ texture coordinates may run far past 0–1 (game rips tile tiny textures dozens of
+          // times); every OBJ tool repeats them, so clamping would smear one edge colour instead.
+          tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
           if (color) tex.colorSpace = THREE.SRGBColorSpace;
-          // Photos go into the .glb as JPEG (a fraction of the size); images with see-through
-          // parts stay PNG so the transparency survives.
-          tex.userData.mimeType = /\.png$/i.test(key) && hasAlpha(bmp) ? 'image/png' : 'image/jpeg';
+          // Big photos go into the .glb as JPEG (a fraction of the size). Small textures stay PNG
+          // (JPEG smudges pixel art and saves nothing), and so do images with see-through parts.
+          const small = Math.max(bmp.width, bmp.height) <= 512;
+          tex.userData.mimeType = small || (/\.png$/i.test(key) && hasAlpha(bmp)) ? 'image/png' : 'image/jpeg';
           tex.needsUpdate = true;
           return tex;
         } catch { missing.add(ref.split(/[\\/]/).pop()!); return null; }
@@ -122,7 +134,7 @@ export async function objBundleToGlb(files: File[], opts: { shrink: boolean }): 
     const map = await texture(def?.map ?? (loneImage.length === 1 ? loneImage[0] : undefined), true);
     const normalMap = await texture(def?.normal, false);
     const opacity = def?.opacity !== undefined && def.opacity < 1 ? Math.max(0.05, def.opacity) : 1;
-    const seeThrough = map?.userData.mimeType === 'image/png';
+    const seeThrough = !!map && hasAlpha(map.image as ImageBitmap);
     return new THREE.MeshStandardMaterial({
       name,
       color: map ? 0xffffff : def?.color ? new THREE.Color().setRGB(...def.color, THREE.SRGBColorSpace) : 0xd9d4c7,
@@ -146,6 +158,8 @@ export async function objBundleToGlb(files: File[], opts: { shrink: boolean }): 
     mesh.material = Array.isArray(mesh.material) ? swapped : swapped[0];
   }
 
+  for (const mesh of meshes) fixTexelUVs(mesh);
+
   const scene = new THREE.Scene();
   scene.add(root);
   scene.updateMatrixWorld(true);
@@ -155,6 +169,39 @@ export async function objBundleToGlb(files: File[], opts: { shrink: boolean }): 
   }) as ArrayBuffer;
   for (const t of await Promise.all(textures.values())) { (t?.image as ImageBitmap | undefined)?.close?.(); t?.dispose(); }
   return { file: new File([glb], objName.replace(/\.obj$/i, '.glb'), { type: 'model/gltf-binary' }), missing: [...missing] };
+}
+
+/** Some exporters — game-model rips especially (N64 tools) — write a share of their triangles'
+ *  texture positions in raw texel units instead of 0–1: (44, −75) where (0.69, 0.06) is meant.
+ *  Tiled, those triangles show a texture repeated dozens of times as fine stripes. A triangle
+ *  whose coordinates are all whole numbers and reach outside 0–1 is one of them: it is scaled
+ *  back by the smallest power-of-two multiple of its texture's size that fits, flipped the way
+ *  those tools measure v (downward from the top). Ordinary models never match, so they're untouched. */
+function fixTexelUVs(mesh: THREE.Mesh) {
+  const uv = mesh.geometry.getAttribute('uv') as THREE.BufferAttribute | undefined;
+  if (!uv || mesh.geometry.index) return;
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  const groups = mesh.geometry.groups.length ? mesh.geometry.groups : [{ start: 0, count: uv.count, materialIndex: 0 }];
+  const whole = (x: number) => Math.abs(x - Math.round(x)) < 1e-4;
+  for (const g of groups) {
+    const img = (mats.at(g.materialIndex ?? 0) as THREE.MeshStandardMaterial | undefined)?.map?.image as { width?: number; height?: number } | undefined;
+    const w = img?.width, h = img?.height;
+    if (!w || !h) continue;
+    const odd: number[] = [];
+    let reach = 1;
+    for (let t = g.start; t + 2 < g.start + g.count; t += 3) {
+      const idx = [t, t + 1, t + 2];
+      const us = idx.map(i => uv.getX(i)), vs = idx.map(i => uv.getY(i));
+      if (![...us, ...vs].every(whole) || [...us, ...vs].every(x => x >= -1e-4 && x <= 1 + 1e-4)) continue;
+      odd.push(t);
+      for (const x of us) reach = Math.max(reach, Math.abs(x) / w);
+      for (const y of vs) reach = Math.max(reach, Math.abs(y) / h);
+    }
+    if (!odd.length) continue;
+    const k = 2 ** Math.ceil(Math.log2(reach));
+    for (const t of odd) for (let i = t; i < t + 3; i++) uv.setXY(i, uv.getX(i) / (k * w), 1 + uv.getY(i) / (k * h));
+    uv.needsUpdate = true;
+  }
 }
 
 /** Any pixel not fully opaque? Checked on a small copy — plenty to spot a cut-out. */
