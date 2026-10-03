@@ -31,7 +31,7 @@ a{color:var(--accent)}
 <ol>
 <li>Open <a href="/">SAGA</a>, type your name and the class password (ask your instructor).</li>
 <li><b>Host</b> creates a room. Everyone else joins with the <b>room code</b> or the invite link.</li>
-<li>Load your kit from <a href="https://dustooned.github.io/kitb/">Kit Forge</a>: drag the <code>.kittable.json</code> onto the table.</li>
+<li>Load your kit from <a href="https://dustooned.github.io/kitb/">Kit Forge</a>: drag the <code>.kittable.json</code> onto the table. A LOL, FIGHT TIEM! deck from Card Forge works too: drag its <code>.lftdeck.json</code> (Send to playtest).</li>
 <li>Play. Everyone sees every move live.</li>
 </ol>
 <div class="tip">Tap <b>✕</b> (top right) to hide all panels for a clear view; <b>☰</b> brings them back. The <b>🧰 Table tools</b> panel folds shut from its header.</div>
@@ -39,7 +39,7 @@ a{color:var(--accent)}
 
 <section id="add"><h2>Adding things to the table</h2>
 <table>
-<tr><td><b>📦 Load kit…</b></td><td>A <code>.kittable.json</code> from Kit Forge's <b>Send to Table</b> or Export ZIP.</td></tr>
+<tr><td><b>📦 Load kit…</b></td><td>A <code>.kittable.json</code> from Kit Forge's <b>Send to Table</b> or Export ZIP, or a <code>.lftdeck.json</code> from Card Forge's <b>Send to playtest</b>.</td></tr>
 <tr><td><b>🖼️ Add image…</b></td><td>Any PNG/JPG/WebP becomes a piece. Fastest way to test one idea. A big photo (over 2048 px or 1.5 MB; 4096 px for table and background images) is shrunk first so it loads fast for everyone — SAGA asks, and you can keep the original if it's under 8 MB.</td></tr>
 <tr><td><b>🧊 Add 3D model…</b></td><td>A <code>.glb</code>, <code>.obj</code> or <code>.stl</code>. See <a href="#formats">File formats</a><a href="#animated">Animated</a><a href="#models">3D models</a>.</td></tr>
 <tr><td><b>🎨 Table look → Background</b></td><td>Space, nebula and gradient presets, your own gradient or image, plus a Wave or Kaleidoscope effect. <b>Atmosphere</b> adds fog, desert dust, rain, snow or embers with a strength slider. Everyone sees the same look.</td></tr>
@@ -104,7 +104,7 @@ a{color:var(--accent)}
 <section id="formats"><h2>File formats</h2>
 <table>
 <tr><th>What</th><th>Use</th><th>Not accepted</th></tr>
-<tr><td>Kits</td><td><code>.kittable.json</code> (Kit Forge → Send to Table, or inside its Export ZIP)</td><td>The <code>.zip</code> itself — unzip it first</td></tr>
+<tr><td>Kits</td><td><code>.kittable.json</code> (Kit Forge → Send to Table, or inside its Export ZIP) or <code>.lftdeck.json</code> (Card Forge → Send to playtest)</td><td>The <code>.zip</code> itself — unzip it first</td></tr>
 <tr><td>Images</td><td>PNG, JPG, WebP (up to 8 MB)</td><td>PSD, PDF, SVG — make those in Kit Forge instead</td></tr>
 <tr><td>Animated</td><td><b>GIF</b> — up to 8 MB, 300 frames, 20 seconds, 1024 px<br><b>WebM / MP4</b> clips — up to 10 MB, 10 seconds, 1280 px (720p). Silent, loop forever.</td><td>Longer or bigger files — SAGA explains how to trim them</td></tr>
 <tr><td>3D models</td><td><code>.glb</code> — keeps colors &amp; textures<br><code>.obj</code> + its <code>.mtl</code> + images (or a <code>.zip</code> of them) — keeps textures<br><code>.obj</code> alone / <code>.stl</code> — quick, shape only (one plain color)</td><td>.blend, .gltf, .fbx, .dae, .usdz — export them as .glb</td></tr>

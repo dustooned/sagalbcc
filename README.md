@@ -22,6 +22,10 @@ deployment) — Kit Forge itself stays a generic, unbranded tool usable by anyon
    `.kittable.json` file.
 3. Open this table, create a room, and use **🧰 Table tools → 📦 Load kit…** to drop that file in.
    Everyone at the table sees it appear.
+
+A LOL, FIGHT TIEM! deck from Card Forge loads the same way: use **Send to playtest** there and drop the
+`.lftdeck.json` (each card becomes a poker-size card with its finished art and the card back; a card
+in several decks of one file spawns once per deck).
 4. Physical print-and-play is still available straight from Kit Forge's own **Export ZIP** /
    **Print cards** — the table and the printable sheets are two independent outputs of the
    same kit, not a replacement for each other.

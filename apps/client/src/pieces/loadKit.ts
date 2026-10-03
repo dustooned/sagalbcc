@@ -14,7 +14,7 @@ export async function loadKitFile(file: File) {
   store.kitProgress = 'Reading kit…';
   store.bump();
   try {
-    const parsed = parseKitFile(JSON.parse(await file.text()), file.name.replace(/\.kittable\.json$|\.json$/i, ''));
+    const parsed = parseKitFile(JSON.parse(await file.text()), file.name.replace(/\.kittable\.json$|\.lftdeck\.json$|\.json$/i, ''));
     const unique = [...new Set(parsed.definitions.flatMap(d => [d.frontImage, d.backImage]).filter((u): u is string => !!u && u.startsWith('data:')))];
     const uploaded = new Map<string, string>();
     const total = unique.length;
@@ -33,7 +33,7 @@ export async function loadKitFile(file: File) {
       return { ...def, frontImage: swap(def.frontImage) ?? '', ...(backImage ? { backImage } : {}) };
     });
     actions.loadKit(parsed.kit, definitions);
-    store.notify(`Loaded “${parsed.kit.name}”.`);
+    store.notify([`Loaded “${parsed.kit.name}”.`, ...(parsed.warnings ?? [])].join(' '));
   } catch (err) {
     store.notify(err instanceof SyntaxError ? 'That file is not valid JSON.' : (err as Error).message);
   } finally {

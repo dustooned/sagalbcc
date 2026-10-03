@@ -70,7 +70,7 @@ function useTableKeys(toggleHud: () => void) {
   }, [toggleHud]);
 }
 
-/** Drop a .kittable.json, or a plain image, anywhere on the page to load it. */
+/** Drop a .kittable.json, a Card Forge .lftdeck.json, or a plain image anywhere on the page to load it. */
 function useKitDrop() {
   const [over, setOver] = useState(false);
   useEffect(() => {
@@ -90,7 +90,7 @@ function useKitDrop() {
       else if (isTableMedia(file)) void addImageFile(file);
       // .glb loads; other 3D formats go the same way so they get the Blender export steps.
       else if (/\.(glb|gltf|blend|fbx|obj|stl|dae|3ds|usdz?)$/i.test(file.name)) void addModelFile(file);
-      else store.notify('Drop a .kittable.json from Kit Forge, a PNG/JPG/WebP/GIF image, a WebM/MP4 clip, or a .glb/.obj/.stl 3D model.');
+      else store.notify('Drop a .kittable.json from Kit Forge, a .lftdeck.json from Card Forge, a PNG/JPG/WebP/GIF image, a WebM/MP4 clip, or a .glb/.obj/.stl 3D model.');
     };
     window.addEventListener('dragover', onOver);
     window.addEventListener('dragleave', onLeave);
