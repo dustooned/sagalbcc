@@ -5,10 +5,11 @@ earlier working name ("Tafl") for being clearer at a glance.*
 
 A private browser playtest table for kits made in [Kit Forge](../README.md) — the closest
 practical recreation of Tabletop Simulator for the web: free-form dragging, flipping,
-rotating, stacking, markers and sticky notes, synced live between players. No rules engine —
-the table only syncs state ("never say illegal move"). A room is joined by a shared password
-plus a short code — themed here as a **rune** (e.g. `SAGA-82K`) — and everyone at a table is
-your **party**.
+rotating, stacking, markers and sticky notes, synced live between players. Undo (<kbd>Ctrl</kbd>+<kbd>Z</kbd>),
+pinning a piece so nobody can nudge it, and saving the whole table to a file that outlives the
+server. No rules engine — the table only syncs state ("never say illegal move"). A room is joined
+by a shared password plus a short code — themed here as a **rune** (e.g. `SAGA-82K`) — and
+everyone at a table is your **party**.
 
 Built as a game-agnostic sibling of [LOL, FIGHT TIEM!'s playtest table](https://github.com/dustooned) —
 same architecture (Colyseus + React Three Fiber), generalized so any Kit Forge export works,
@@ -53,10 +54,15 @@ server). Two things matter for reaching it from a locked-down school network:
   and the websocket room from the same origin — students just open a link, no separate server
   address to configure, no software to install (browser-only, same as Kit Forge itself).
 
-Room state is in memory: a server restart ends running tables (mid-game state isn't persisted
-yet — see [ROADMAP.md](../ROADMAP.md)). Uploaded images go through a pluggable `AssetStorage`
-interface (`apps/server/src/storage/`); only local disk is implemented today, so a host with a
-persistent disk (or willingness to lose uploads on redeploy) is what you want for now.
+Room state lives in memory, but the table **autosaves** every couple of minutes to `SAVES_DIR`
+(`.data/saves` by default, next to uploads) as an ordinary `.sagatable.json` — the same file
+**💾 Save table** downloads. When a fresh table opens, the first player is offered the most recent
+save (if it is younger than `RECOVER_HOURS`, default 12) and can bring it back with one click, or
+`Ctrl`+`Z` it away again. That covers a crash, a redeploy, and a laptop that closed at the wrong
+moment. Uploaded images go through a pluggable `AssetStorage` interface
+(`apps/server/src/storage/`); only local disk is implemented today, so put both `UPLOAD_DIR` and
+`SAVES_DIR` on a persistent disk — on Railway, attaching a volume sets both automatically — or
+accept losing them on redeploy.
 
 ## Project layout
 

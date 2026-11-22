@@ -4,6 +4,7 @@ import { Client, type Room } from '@colyseus/sdk';
 import { ROOM_NAME, type ServerMessages } from '@kitforge/shared-types';
 import { SERVER_URL } from '../config.ts';
 import { showRoomInAddressBar } from './invite.ts';
+import { downloadSave } from '../pieces/saveTable.ts';
 import { session } from './session.ts';
 import { store } from './tableStore.ts';
 
@@ -22,6 +23,7 @@ function attach(room: Room) {
   store.room = room;
   store.ready = false;
   store.status = 'online';
+  store.showResume(null);
   const saveSeat = () => { if (store.playerId) session.setSeat({ roomId: room.roomId, reconnectionToken: room.reconnectionToken, playerId: store.playerId }); };
 
   room.onStateChange(() => {
@@ -32,6 +34,8 @@ function attach(room: Room) {
   room.onMessage('notice', (m: ServerMessages['notice']) => store.notify(m.text));
   room.onMessage('pong', (m: ServerMessages['pong']) => { store.latencyMs = Math.round(performance.now() - m.t); });
   room.onMessage('kicked', (m: ServerMessages['kicked']) => { session.clearSeat(); store.notify(m.text); });
+  room.onMessage('tableSaved', (m: ServerMessages['tableSaved']) => downloadSave(m.json, m.filename));
+  room.onMessage('resumable', (m: ServerMessages['resumable']) => store.showResume(m));
   room.onDrop(() => { store.status = 'reconnecting'; store.bump(); });
   room.onReconnect(() => { store.status = 'online'; saveSeat(); store.bump(); });
   room.onLeave(code => {

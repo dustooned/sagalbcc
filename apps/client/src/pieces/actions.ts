@@ -36,6 +36,22 @@ export const actions = {
     store.send('setFace', { ids, faceUp: !anyUp });
   },
   remove: (ids: string[]) => ids.length && store.send('remove', { ids }),
+  /** Pin pieces so nobody can move them (or free them again). */
+  setLock: (ids: string[], locked: boolean) => ids.length && store.send('setLock', { ids, locked }),
+  /** K: pin the selection — or, if any of it is already free, pin rather than unpin. */
+  toggleLock: (ids: string[]) => {
+    if (!ids.length) return;
+    store.send('setLock', { ids, locked: ids.some(id => !store.piece(id)?.locked) });
+  },
+  undo: () => store.send('undo', {}),
+  redo: () => store.send('redo', {}),
+  /** Table grid, in inches; 0 turns it off. */
+  setGrid: (size: number) => store.send('setGrid', { size }),
+  /** Rename a piece and/or set its description. Leave an argument out to keep that field. */
+  setPieceInfo: (ids: string[], name?: string, description?: string) => {
+    if (!ids.length) return;
+    store.send('setPieceInfo', { ids, ...(name === undefined ? {} : { name }), ...(description === undefined ? {} : { description }) });
+  },
   loadKit: (kit: NormalizedKit, definitions: PieceDefinition[]) => store.send('loadKit', { kit, definitions }),
   stack: (id: string, action: StackAction) => store.send('stackAction', { id, action }),
   spawnMarker: (kind: MarkerKind, label?: string) => store.send('spawnMarker', { kind, label }),

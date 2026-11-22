@@ -12,7 +12,9 @@ import { useTable } from '../net/tableStore.ts';
 import { CameraRig } from './CameraRig.tsx';
 import { Marker3D } from './Marker3D.tsx';
 import { Note3D } from './Note3D.tsx';
-import { Piece3D, pieceBaseY } from './Piece3D.tsx';
+import { Piece3D, pieceBaseY, pieceThickness } from './Piece3D.tsx';
+import { SAME_SPOT } from '../pieces/stacks.ts';
+import type { SyncedPiece } from '../net/stateTypes.ts';
 import { ui, useUi } from './selection.ts';
 import { TableSurface } from './TableSurface.tsx';
 import { Backdrop3D } from './Backdrop3D.tsx';
@@ -27,7 +29,23 @@ export function Tabletop() {
   const players = [...state.players.values()];
   const seatColor = new Map(players.map(p => [p.id, SEAT_COLORS[p.seat % SEAT_COLORS.length] ?? '#ccc']));
   const pieces = [...state.pieces.values()].sort((a, b) => a.order - b.order);
-  const rankOf = new Map(pieces.map((c, rank) => [c.id, rank]));
+  // How high a piece rests is its depth *within its own stack* — the pieces sharing its spot and
+  // kind. Using the global draw order here (as this used to) meant every piece floated a little
+  // higher the more pieces were on the table, while a 20-card deck still looked like one card.
+  // Grouping is the same rule the engine uses for stacks, so rendering and behaviour agree.
+  const depthOf = new Map<string, number>();
+  {
+    let previous: SyncedPiece | undefined;
+    let depth = 0;
+    // Sorting is stable, so within one spot the pieces keep ascending draw order: bottom first.
+    for (const c of [...pieces].sort((a, b) => (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : a.x - b.x || a.z - b.z))) {
+      const stacked = previous && previous.kind === c.kind
+        && Math.abs(previous.x - c.x) < SAME_SPOT && Math.abs(previous.z - c.z) < SAME_SPOT;
+      depth = stacked ? depth + 1 : 0;
+      if (depth) depthOf.set(c.id, depth);
+      previous = c;
+    }
+  }
   const lockColor = (lockedBy: string) => (lockedBy && lockedBy !== t.playerId ? seatColor.get(lockedBy) ?? '#fff' : null);
 
   return (
@@ -58,8 +76,8 @@ export function Tabletop() {
       <ambientLight intensity={0.95} />
       <directionalLight position={[6, 18, 8]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-20} shadow-camera-right={20} shadow-camera-top={15} shadow-camera-bottom={-15} />
-      <TableSurface felt={state.lookFelt} image={state.lookImage} />
-      {pieces.map((c, rank) => (
+      <TableSurface felt={state.lookFelt} image={state.lookImage} grid={state.gridSize ?? 0} />
+      {pieces.map(c => (
         <Piece3D
           key={c.id}
           id={c.id}
@@ -72,9 +90,11 @@ export function Tabletop() {
           tapped={c.tapped}
           orient={c.orient}
           backImage={c.backImage}
-          rank={rank}
+          depth={depthOf.get(c.id) ?? 0}
           selected={u.selected.has(c.id)}
           hovered={u.hovered === c.id}
+          snapTarget={u.snapTarget === c.id}
+          locked={c.locked}
           lockColor={lockColor(c.lockedBy)}
         />
       ))}
@@ -82,8 +102,10 @@ export function Tabletop() {
         <Note3D key={n.id} id={n.id} text={n.text} author={n.author} lockColor={lockColor(n.lockedBy)} />
       ))}
       {[...state.markers.values()].map(m => {
-        const rank = m.attachedTo ? rankOf.get(m.attachedTo) : undefined;
-        return <Marker3D key={m.id} id={m.id} kind={m.kind} label={m.label} value={m.value} rolls={m.rolls}pieceY={rank === undefined ? 0 : pieceBaseY(rank)} lockColor={lockColor(m.lockedBy)} />;
+        const on = m.attachedTo ? state.pieces.get(m.attachedTo) : undefined;
+        // A marker rides on top of the piece it was dropped on, using that piece's own height.
+        const pieceY = on ? pieceBaseY(depthOf.get(on.id) ?? 0, pieceThickness(on.kind, on.w, on.h)) : 0;
+        return <Marker3D key={m.id} id={m.id} kind={m.kind} label={m.label} value={m.value} rolls={m.rolls} pieceY={pieceY} lockColor={lockColor(m.lockedBy)} />;
       })}
     </Canvas>
   );

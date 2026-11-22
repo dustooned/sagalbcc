@@ -51,6 +51,8 @@ export function sanitizeDefinition(raw: unknown): PieceDefinition | null {
   const kind = KINDS.includes(r.kind as PieceKind) ? (r.kind as PieceKind) : null;
   if (!kind) return null;
   const def: PieceDefinition = { id, kind, name: cleanText(r.name, 60) || id, frontImage: cleanImageUrl(r.frontImage), w: size(r.w, 1), h: size(r.h, 1) };
+  const description = cleanText(r.description, 280);
+  if (description) def.description = description;
   const backImage = cleanImageUrl(r.backImage);
   if (backImage) def.backImage = backImage;
   const model = cleanModelUrl(r.model);
@@ -69,6 +71,8 @@ export function sanitizeFace(raw: unknown): PieceFace | null {
   const kind = KINDS.includes(r.kind as PieceKind) ? (r.kind as PieceKind) : null;
   if (!kind) return null;
   const face: PieceFace = { pieceId, kind, name: cleanText(r.name, 60) || pieceId, frontImage: cleanImageUrl(r.frontImage), w: size(r.w, 1), h: size(r.h, 1) };
+  const description = cleanText(r.description, 280);
+  if (description) face.description = description;
   const backImage = cleanImageUrl(r.backImage);
   if (backImage) face.backImage = backImage;
   const model = cleanModelUrl(r.model);

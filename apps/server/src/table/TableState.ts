@@ -17,6 +17,9 @@ export const PieceState = schema({
   /** Stacking order: higher draws on top. Bumped whenever a piece is grabbed or moved. */
   order: t.uint32().default(0),
   lockedBy: t.string().default(''),
+  /** Pinned to the table: nobody can grab, move, turn, flip, resize or delete it until somebody
+   *  unlocks it. Unlike `lockedBy` (a transient "being dragged by" marker) this persists. */
+  locked: t.boolean().default(false),
   /** JSON PieceFace. Nothing on this table is hidden information, so this is always populated. */
   face: t.string().default(''),
   backImage: t.string().default(''),
@@ -85,5 +88,11 @@ export const TableState = schema({
   lookAtmosphere: t.string().default(''),
   /** Counter columns every player gets (SCORE, HP, GOLD…). Anyone can add or remove one. */
   counterNames: t.array('string'),
+  /** Inches between grid lines that dropped pieces snap to. 0 = no grid. */
+  gridSize: t.float32().default(0),
+  /** How many steps Ctrl+Z / Ctrl+Shift+Z would take — so the menus can grey out when empty.
+   *  These are a view of the server's history stack, not part of the snapshot it stores. */
+  undoCount: t.uint8().default(0),
+  redoCount: t.uint8().default(0),
 }, 'TableState');
 export type TableState = SchemaType<typeof TableState>;

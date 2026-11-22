@@ -2,7 +2,7 @@
 // so components read it directly; this store only tells React *when* to look again.
 import { useSyncExternalStore } from 'react';
 import type { Room } from '@colyseus/sdk';
-import type { ClientMessages, PieceFace } from '@kitforge/shared-types';
+import type { ClientMessages, PieceFace, ServerMessages } from '@kitforge/shared-types';
 import type { SyncedPiece, SyncedPlayer, SyncedTable } from './stateTypes.ts';
 
 export type ConnectionStatus = 'offline' | 'online' | 'reconnecting' | 'lost';
@@ -20,6 +20,10 @@ class TableStore {
   help: { error: string; fix: string } | null = null;
 
   showHelp(help: { error: string; fix: string } | null) { this.help = help; this.bump(); }
+
+  /** A recent autosave the server offered on joining, until the player answers it. */
+  resumable: ServerMessages['resumable'] | null = null;
+  showResume(save: ServerMessages['resumable'] | null) { this.resumable = save; this.bump(); }
 
   private listeners = new Set<() => void>();
   private frame = 0;
@@ -68,6 +72,7 @@ class TableStore {
     this.ready = false;
     this.playerId = '';
     this.status = 'offline';
+    this.resumable = null;
     this.bump();
   }
 }

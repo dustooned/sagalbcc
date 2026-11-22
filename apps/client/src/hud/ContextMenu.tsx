@@ -19,6 +19,9 @@ function BackgroundMenu({ menu }: { menu: MenuState }) {
       <div className="menu-catcher" onPointerDown={() => ui.openMenu(null)} onContextMenu={e => { e.preventDefault(); ui.openMenu(null); }} />
       <menu className="context-menu" style={{ left, top }}>
         <li className="menu-head">{has ? 'Selected piece' : 'Hotkeys'}{many}</li>
+        <li><button disabled={!store.state?.undoCount} onClick={run(() => actions.undo())}>Undo <kbd>Ctrl+Z</kbd></button></li>
+        <li><button disabled={!store.state?.redoCount} onClick={run(() => actions.redo())}>Redo <kbd>Ctrl+Shift+Z</kbd></button></li>
+        <li className="sep" />
         <li><button disabled={!has} onClick={run(() => actions.flip(ids))}>Flip <kbd>F</kbd></button></li>
         <li><button disabled={!has} onClick={run(() => actions.rotateLeft(ids))}>Rotate left <kbd>Q</kbd></button></li>
         <li><button disabled={!has} onClick={run(() => actions.rotateRight(ids))}>Rotate right <kbd>E</kbd></button></li>
@@ -81,14 +84,19 @@ export function ContextMenu() {
   const many = ids.length > 1 ? ` (${ids.length})` : '';
   const run = (fn: () => void) => () => { fn(); ui.openMenu(null); };
   const stack = stackMembers(t.state, piece);
-  const isModel = (() => { try { return !!(JSON.parse(piece.face) as { model?: string }).model; } catch { return false; } })();
-  const height = 420 + (stack.length > 1 ? 140 : 0) + (ids.length > 1 ? 130 : 0) + (isModel ? 200 : 0);
+  // The piece's own name, the way Tabletop Simulator shows an object's name at the top of its
+  // menu — so you can tell two identical backs apart before acting on one.
+  const face = (() => { try { return JSON.parse(piece.face) as { model?: string; name?: string; description?: string }; } catch { return null; } })();
+  const isModel = !!face?.model;
+  const height = 520 + (stack.length > 1 ? 140 : 0) + (ids.length > 1 ? 130 : 0) + (isModel ? 200 : 0);
   const left = Math.min(menu.x, window.innerWidth - 220), topPx = Math.max(8, Math.min(menu.y, window.innerHeight - height));
 
   return (
     <>
       <div className="menu-catcher" onPointerDown={() => ui.openMenu(null)} onContextMenu={e => { e.preventDefault(); ui.openMenu(null); }} />
       <menu className="context-menu" style={{ left, top: topPx }}>
+        <li className="menu-head">{face?.name || (piece.locked ? 'Locked piece' : 'Piece')}{many}</li>
+        {face?.description && <li className="menu-desc">{face.description}</li>}
         {stack.length > 1 && <>
           <li className="menu-head">Stack · {stack.length}</li>
           <li><button onClick={run(() => actions.stack(menu.id, 'shuffle'))}>Shuffle stack {ids.length === 1 && <kbd>R</kbd>}</button></li>
@@ -139,6 +147,9 @@ export function ContextMenu() {
           <button onClick={() => actions.bigger(ids)} title="+ key">＋ Bigger</button>
         </li>
         <li className="sep" />
+        <li><button onClick={run(() => actions.setLock(ids, !piece.locked))}>{piece.locked ? '🔓 Unlock' : '🔒 Lock'}{many} <kbd>K</kbd></button></li>
+        <li><button onClick={run(() => { const name = prompt('Piece name:', face?.name ?? ''); if (name !== null) actions.setPieceInfo(ids, name); })}>✏️ Rename…</button></li>
+        <li><button onClick={run(() => { const text = prompt('Description:', face?.description ?? ''); if (text !== null) actions.setPieceInfo(ids, undefined, text); })}>📝 Note on the piece…</button></li>
         <li><button onClick={run(() => actions.cloneAll(ids))}>Clone{many} <kbd>C</kbd></button></li>
         <li><button className="danger" onClick={run(() => { actions.remove(ids); ui.select([]); })}>Delete{many} <kbd>Del</kbd></button></li>
       </menu>

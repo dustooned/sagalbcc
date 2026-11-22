@@ -2,6 +2,8 @@
 import type { SyncedPiece, SyncedTable } from '../net/stateTypes.ts';
 
 const SAME_SPOT = 0.06;
+/** Exported so rendering can group pieces into stacks the same way the table engine does. */
+export { SAME_SPOT };
 
 export function stackMembers(state: SyncedTable, piece: SyncedPiece): SyncedPiece[] {
   return [...state.pieces.values()]

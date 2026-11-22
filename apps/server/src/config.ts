@@ -23,9 +23,18 @@ export interface ServerConfig {
   clientDist: string;
   /** How long a table with nobody connected stays open, so testers can come back to it. */
   emptyTableMinutes: number;
+  /** Where autosaves go. Same volume as uploads by default, so both survive a redeploy together. */
+  savesDir: string;
+  /** Minutes between autosaves; 0 turns them off. */
+  autosaveMinutes: number;
+  /** How old an autosave may be before a new table stops offering to restore it. */
+  recoverHours: number;
   /** Express "trust proxy" (hops or true) so rate limits see real tester IPs behind a host's proxy. */
   trustProxy: number | boolean;
 }
+
+const minutes = (v: string | undefined, fallback: number, min = 0) =>
+  v !== undefined && v !== '' && Number.isFinite(Number(v)) ? Math.max(min, Number(v)) : fallback;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const password = env.TABLE_PASSWORD ?? '';
@@ -49,6 +58,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     clientDist: path.resolve(TABLE_ROOT, 'apps/client/dist'),
     emptyTableMinutes: env.EMPTY_TABLE_MINUTES !== undefined && env.EMPTY_TABLE_MINUTES !== '' && Number.isFinite(Number(env.EMPTY_TABLE_MINUTES))
       ? Math.max(0, Number(env.EMPTY_TABLE_MINUTES)) : 30,
+    savesDir: path.resolve(TABLE_ROOT, env.SAVES_DIR || (env.RAILWAY_VOLUME_MOUNT_PATH ? path.join(env.RAILWAY_VOLUME_MOUNT_PATH, 'saves') : '.data/saves')),
+    autosaveMinutes: minutes(env.AUTOSAVE_MINUTES, 2),
+    recoverHours: minutes(env.RECOVER_HOURS, 12),
     trustProxy: env.TRUST_PROXY === 'true' ? true : Number(env.TRUST_PROXY) > 0 ? Number(env.TRUST_PROXY) : false,
   };
 }

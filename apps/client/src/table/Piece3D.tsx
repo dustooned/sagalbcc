@@ -42,18 +42,32 @@ export interface Piece3DProps {
   /** 3D models: which side faces up (0–5). */
   orient: number;
   backImage: string;
-  /** Position in the stacking order among table pieces (0 = bottom). */
-  rank: number;
+  /** Depth within its own stack (0 = bottom). Loose pieces are 0 — height must not depend on how
+   *  many pieces happen to be on the table. */
+  depth: number;
   selected: boolean;
   hovered: boolean;
   /** Seat color of another player currently holding this piece. */
   lockColor: string | null;
+  /** Pinned to the table: not draggable by anyone, drawn with a quiet ring. */
+  locked: boolean;
+  /** The held piece would snap onto this one if released now. */
+  snapTarget: boolean;
 }
 
 const angleTo = (from: number, to: number) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
 
-/** Resting height of a piece by its rank in the stacking order (markers riding on it sit above). */
-export const pieceBaseY = (rank: number) => PIECE_THICKNESS / 2 + 0.004 + rank * 0.0035;
+/** How tall a piece actually is: cards and tokens are a flat slab, boards get a little more body
+ *  in proportion to their size. One place, so sitting things on top of them agrees. */
+export const pieceThickness = (kind: string, w: number, h: number) =>
+  kind === 'board' ? Math.max(PIECE_THICKNESS, Math.min(w, h) * 0.01) : PIECE_THICKNESS;
+
+/** How much taller each card in a stack sits than the one under it. Small, but enough that a
+ *  20-card deck reads as a deck instead of a single card. */
+const STACK_GAP = 0.02;
+
+/** Resting height of a piece by its depth *within its own stack* (0 = bottom). */
+export const pieceBaseY = (depth: number, thickness = PIECE_THICKNESS) => thickness / 2 + 0.004 + depth * STACK_GAP;
 export { DRAG_LIFT } from './dragging.ts';
 import { DRAG_LIFT } from './dragging.ts';
 
@@ -70,6 +84,27 @@ const ORIENTS = [
 /** One download + parse per model file, shared by every copy of it on the table. */
 const modelCache = new Map<string, Promise<THREE.Object3D>>();
 const loadingMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', transparent: true, opacity: 0.35 });
+
+/** A tiny padlock, drawn once and shared. Sprites always face the camera, so it reads from any
+ *  seat — the ring alone was too easy to miss on a busy table. */
+let lockTexture: THREE.CanvasTexture | undefined;
+function lockIcon(): THREE.CanvasTexture {
+  if (lockTexture) return lockTexture;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const g = canvas.getContext('2d')!;
+  g.strokeStyle = '#e8eaf0'; g.fillStyle = '#e8eaf0'; g.lineWidth = 7; g.lineCap = 'round';
+  g.beginPath(); g.arc(size / 2, 27, 12, Math.PI, 0); g.stroke();   // shackle
+  const w = 34, h = 24, x = (size - w) / 2, y = 29;                  // body
+  const ctx = g as CanvasRenderingContext2D & { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void };
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, 6); else ctx.rect(x, y, w, h);
+  ctx.fill();
+  lockTexture = new THREE.CanvasTexture(canvas);
+  lockTexture.colorSpace = THREE.SRGBColorSpace;
+  return lockTexture;
+}
 
 /** A 3D model (.glb) as a piece's body: fitted to the piece's footprint and sitting on the felt.
  *  A translucent block holds its place while it downloads. */
@@ -124,7 +159,7 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
   const group = useRef<THREE.Group>(null);
   const flipper = useRef<THREE.Group>(null);
   const lastTap = useRef(0);
-  const thickness = p.kind === 'board' ? Math.max(PIECE_THICKNESS, Math.min(p.w, p.h) * 0.01) : PIECE_THICKNESS;
+  const thickness = pieceThickness(p.kind, p.w, p.h);
 
   const materials = useMemo(() => {
     const face = (() => { try { return p.face ? JSON.parse(p.face) : null; } catch { return null; } })();
@@ -139,7 +174,7 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
     return [edge, edge, frontMaterial(face), backMaterial(p.backImage), edge, edge];
   }, [p.face, p.backImage, p.kind]);
 
-  const baseY = pieceBaseY(p.rank);
+  const baseY = pieceBaseY(p.depth, thickness);
   const yaw = (p.rotation - (p.tapped ? 90 : 0)) * DEG;
 
   useLayoutEffect(() => {
@@ -181,23 +216,29 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
     if (!ui.selected.has(p.id)) ui.select([p.id]);
     const piece = store.piece(p.id);
     if (!piece) return;
+    if (piece.locked) {
+      store.notify('That piece is locked. Unlock it first (K).');
+      return;
+    }
     if (piece.lockedBy && piece.lockedBy !== store.playerId) {
       store.notify(`${store.state?.players.get(piece.lockedBy)?.name ?? 'Someone'} is moving that.`);
       return;
     }
     if (doubleTapped) { actions.flip([p.id]); return; }
     const group = ui.selected.size > 1
-      ? [...ui.selected].map(id => store.piece(id)).filter((c): c is NonNullable<typeof c> => !!c && (!c.lockedBy || c.lockedBy === store.playerId))
+      ? [...ui.selected].map(id => store.piece(id)).filter((c): c is NonNullable<typeof c> => !!c && !c.locked && (!c.lockedBy || c.lockedBy === store.playerId))
       : [piece];
     const ids = group.map(c => c.id);
     // Touch: hold it with one finger and twist a second finger around it to turn it — each
     // quarter-twist is one 90° turn, same as Q/E.
     beginDrag(e, group.map(c => ({ id: c.id, x: c.x, z: c.z, w: c.w, h: c.h })), {
       onTwist: dir => (dir > 0 ? actions.rotateRight(ids) : actions.rotateLeft(ids)),
+      onSnap: id => ui.setSnapTarget(id),
     });
   };
 
-  const outlineColor = p.selected ? '#ffd24a' : p.lockColor;
+  const outlineColor = p.selected ? '#ffd24a'
+    : p.lockColor ?? (p.locked ? '#8b93a7' : p.snapTarget ? '#7ee787' : p.hovered ? '#6f7a8c' : null);
   const model = useMemo(() => { try { return (JSON.parse(p.face) as { model?: string }).model ?? ''; } catch { return ''; } }, [p.face]);
   const handlers = {
     onPointerDown,
@@ -217,6 +258,11 @@ export const Piece3D = memo(function Piece3D(p: Piece3DProps) {
       </group>
       {outlineColor && (
         <mesh geometry={outlineFor(p.w, p.h)} material={highlightMaterial(outlineColor)} rotation-x={-Math.PI / 2} position-y={-thickness / 2 - 0.002} />
+      )}
+      {p.locked && (
+        <sprite position={[0, thickness / 2 + 0.42, 0]} scale={[0.34, 0.34, 0.34]}>
+          <spriteMaterial map={lockIcon()} transparent depthWrite={false} />
+        </sprite>
       )}
     </group>
   );

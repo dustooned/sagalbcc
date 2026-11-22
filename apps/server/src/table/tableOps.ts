@@ -5,17 +5,20 @@
 // faceUp only switches which image (front or back) is shown.
 import { randomInt } from 'node:crypto';
 import {
-  ATMOSPHERE_KINDS, BACKDROP_EFFECTS, BACKDROP_MODES, DIE_KINDS, DIE_SIDES, MAX_COUNTERS, MAX_PLAYERS, clampToTable,
+  ATMOSPHERE_KINDS, BACKDROP_EFFECTS, BACKDROP_MODES, DEFAULT_FELT, DIE_KINDS, DIE_SIDES, MAX_COUNTERS, MAX_PLAYERS, clampToTable,
   type MarkerKind, type NormalizedKit, type PieceDefinition, type PieceFace, type PieceKind,
 } from '@kitforge/shared-types';
 import { MarkerState, NoteState, PieceState, PlayerState, TableState } from './TableState.ts';
-import { cleanImageUrl, cleanText, isFiniteNumber } from './sanitize.ts';
+import { History, restoreSnapshot, snapshotOf, type TableSnapshot } from './history.ts';
+import { cleanImageUrl, cleanText, isFiniteNumber, sanitizeFace } from './sanitize.ts';
 
 export interface TableContext {
   state: TableState;
   nextOrder: number;
   nextId: number;
   randomInt: (maxExclusive: number) => number;
+  /** Undo/redo steps. Not part of the synced table except for the two depth counters it feeds. */
+  history: History;
 }
 
 export interface OpResult { ok: boolean; notice?: string }
@@ -23,7 +26,7 @@ const ok = (): OpResult => ({ ok: true });
 const fail = (notice?: string): OpResult => ({ ok: false, notice });
 
 export function createTableContext(opts: Partial<Pick<TableContext, 'randomInt'>> = {}): TableContext {
-  return { state: withDefaults(new TableState()), nextOrder: 1, nextId: 1, randomInt: opts.randomInt ?? (n => randomInt(n)) };
+  return { state: withDefaults(new TableState()), nextOrder: 1, nextId: 1, randomInt: opts.randomInt ?? (n => randomInt(n)), history: new History() };
 }
 
 // ---------------------------------------------------------------- helpers
@@ -39,6 +42,43 @@ const nameOf = (ctx: TableContext, playerId: string) => ctx.state.players.get(pl
 const faceOf = (piece: PieceState): PieceFace | null => { try { return piece.face ? (JSON.parse(piece.face) as PieceFace) : null; } catch { return null; } };
 const labelOf = (piece: PieceState) => faceOf(piece)?.name ?? 'a piece';
 const lockedByOther = (item: { lockedBy: string }, playerId: string) => !!item.lockedBy && item.lockedBy !== playerId;
+/** Pinned by a player: immovable for everybody until somebody unlocks it. */
+const LOCKED_NOTICE = 'That piece is locked. Unlock it first (K).';
+
+// ---------------------------------------------------------------- undo / redo
+
+function syncHistoryCounts(ctx: TableContext) {
+  ctx.state.undoCount = Math.min(255, ctx.history.undoCount);
+  ctx.state.redoCount = Math.min(255, ctx.history.redoCount);
+}
+
+/** Runs one discrete action with a single undo step behind it. Drags are deliberately not
+ *  wrapped: `grab` opens the step and the `move`s and `drop` mutate inside it, so one Ctrl+Z
+ *  undoes a whole move instead of one packet of it. */
+export function undoable(ctx: TableContext, fn: () => OpResult): OpResult {
+  const before = snapshotOf(ctx.state);
+  const res = fn();
+  if (res.ok) { ctx.history.record(before); syncHistoryCounts(ctx); }
+  return res;
+}
+
+export function undo(ctx: TableContext, playerId: string): OpResult {
+  const previous = ctx.history.back(snapshotOf(ctx.state));
+  if (previous === null) return fail('Nothing to undo.');
+  restoreSnapshot(ctx.state, previous);
+  syncHistoryCounts(ctx);
+  appendLog(ctx, `${nameOf(ctx, playerId)} undid an action.`);
+  return ok();
+}
+
+export function redo(ctx: TableContext, playerId: string): OpResult {
+  const next = ctx.history.forward(snapshotOf(ctx.state));
+  if (next === null) return fail('Nothing to redo.');
+  restoreSnapshot(ctx.state, next);
+  syncHistoryCounts(ctx);
+  appendLog(ctx, `${nameOf(ctx, playerId)} redid an action.`);
+  return ok();
+}
 
 function bump(ctx: TableContext, piece: PieceState) { piece.order = ctx.nextOrder++; }
 
@@ -188,6 +228,7 @@ function movable(ctx: TableContext, id: unknown): Movable | undefined {
 export function grab(ctx: TableContext, playerId: string, id: unknown): OpResult {
   const m = movable(ctx, id);
   if (!m) return fail('That is no longer there.');
+  if (m.kind === 'piece' && m.item.locked) return fail(LOCKED_NOTICE);
   if (lockedByOther(m.item, playerId)) return fail(lockNotice(ctx, m.item, m.kind));
   if (m.kind === 'marker') detachMarker(ctx, m.item);
   m.item.lockedBy = playerId;
@@ -228,6 +269,7 @@ export function drop(ctx: TableContext, playerId: string, id: unknown, x: unknow
   if (m && m.kind !== 'piece') return dropLoose(ctx, playerId, m, x, z);
   const piece = m?.item;
   if (!piece) return fail();
+  if (piece.locked) return fail(LOCKED_NOTICE);
   if (lockedByOther(piece, playerId)) return fail(lockNotice(ctx, piece));
   if (isFiniteNumber(x) && isFiniteNumber(z)) {
     const pos = clampToTable(x, z, piece.w, piece.h);
@@ -235,6 +277,14 @@ export function drop(ctx: TableContext, playerId: string, id: unknown, x: unknow
     piece.z = pos.z;
   }
   if (snap) {
+    // Grid first, then the same-kind snap: a piece lands on a grid line, and can still click onto
+    // a pile that happens to sit near one.
+    const grid = ctx.state.gridSize;
+    if (grid > 0) {
+      const aligned = clampToTable(Math.round(piece.x / grid) * grid, Math.round(piece.z / grid) * grid, piece.w, piece.h);
+      piece.x = aligned.x;
+      piece.z = aligned.z;
+    }
     const snapDist = Math.min(piece.w, piece.h) * 0.4;
     let best: PieceState | undefined, bestDist = snapDist;
     for (const other of ctx.state.pieces.values()) {
@@ -280,6 +330,7 @@ export function stackAction(ctx: TableContext, playerId: string, id: unknown, ac
   const stack = stackOf(ctx, piece);
   if (stack.length < 2) return fail('That is not in a stack.');
   const blocked = stack.find(c => lockedByOther(c, playerId));
+  if (stack.some(c => c.locked)) return fail('Part of that stack is locked. Unlock it first (K).');
   if (blocked) return fail(lockNotice(ctx, blocked));
   const orders = stack.map(c => c.order);
   const who = nameOf(ctx, playerId), n = stack.length;
@@ -309,7 +360,7 @@ export function stackAction(ctx: TableContext, playerId: string, id: unknown, ac
  *  player right-clicked or pointed at. Shuffled, it's "shuffle these cards into a deck". */
 export function gather(ctx: TableContext, playerId: string, ids: string[], shuffle: unknown): OpResult {
   const picked = ids.map(id => ctx.state.pieces.get(id)).filter((p): p is PieceState => !!p);
-  const free = picked.filter(p => !lockedByOther(p, playerId));
+  const free = picked.filter(p => !p.locked && !lockedByOther(p, playerId));
   if (free.length < 2) {
     const blocked = picked.find(p => lockedByOther(p, playerId));
     return fail(blocked ? lockNotice(ctx, blocked) : 'Select two or more pieces first.');
@@ -327,15 +378,16 @@ export function gather(ctx: TableContext, playerId: string, ids: string[], shuff
 // ---------------------------------------------------------------- piece state
 
 function eachPiece(ctx: TableContext, playerId: string, ids: string[], fn: (piece: PieceState) => void): OpResult {
-  let changed = 0, blocked: PieceState | undefined;
+  let changed = 0, blocked: PieceState | undefined, pinned = false;
   for (const id of ids) {
     const piece = ctx.state.pieces.get(id);
     if (!piece) continue;
+    if (piece.locked) { pinned = true; continue; }
     if (lockedByOther(piece, playerId)) { blocked = piece; continue; }
     fn(piece);
     changed++;
   }
-  if (!changed) return fail(blocked ? lockNotice(ctx, blocked) : undefined);
+  if (!changed) return fail(blocked ? lockNotice(ctx, blocked) : pinned ? LOCKED_NOTICE : undefined);
   return ok();
 }
 
@@ -393,15 +445,38 @@ export function clone(ctx: TableContext, playerId: string, id: unknown): OpResul
 }
 
 export function remove(ctx: TableContext, playerId: string, ids: string[]): OpResult {
-  let pieces = 0, other = 0;
+  let pieces = 0, other = 0, pinned = false;
   for (const id of ids) {
     const m = movable(ctx, id);
     if (!m || lockedByOther(m.item, playerId)) continue;
+    if (m.kind === 'piece' && m.item.locked) { pinned = true; continue; }
     if (m.kind === 'piece') { deletePiece(ctx, m.item); pieces++; }
     else { (m.kind === 'marker' ? ctx.state.markers : ctx.state.notes).delete(id); other++; }
   }
-  if (!pieces && !other) return fail();
+  if (!pieces && !other) return fail(pinned ? LOCKED_NOTICE : undefined);
   if (pieces) appendLog(ctx, `${nameOf(ctx, playerId)} deleted ${pieces === 1 ? 'a piece' : `${pieces} pieces`}.`);
+  return ok();
+}
+
+// ---------------------------------------------------------------- locking
+
+/** Pins pieces to the table, or unpins them. Anyone may do it: this table has no admin role
+ *  beyond the host, and a pinned board is one keypress from being free again. Locking lets go of
+ *  the piece, so the pin takes effect now rather than when the current drag ends. */
+export function setLock(ctx: TableContext, playerId: string, ids: string[], locked: unknown): OpResult {
+  if (typeof locked !== 'boolean') return fail();
+  let n = 0;
+  let blocked: PieceState | undefined;
+  for (const id of ids) {
+    const piece = ctx.state.pieces.get(id);
+    if (!piece || piece.locked === locked) continue;
+    if (lockedByOther(piece, playerId)) { blocked = piece; continue; }
+    piece.locked = locked;
+    if (locked) piece.lockedBy = '';
+    n++;
+  }
+  if (!n) return fail(blocked ? lockNotice(ctx, blocked) : undefined);
+  appendLog(ctx, `${nameOf(ctx, playerId)} ${locked ? 'locked' : 'unlocked'} ${n === 1 ? 'a piece' : `${n} pieces`}.`);
   return ok();
 }
 
@@ -647,5 +722,210 @@ export function renameCounter(ctx: TableContext, actorId: string, from: unknown,
   ctx.state.counterNames[i] = key;
   ctx.state.players.forEach(p => { p.counters.set(key, p.counters.get(from as string) ?? 0); p.counters.delete(from as string); });
   appendLog(ctx, `${nameOf(ctx, actorId)} renamed ${from} to ${key}.`);
+  return ok();
+}
+
+// ---------------------------------------------------------------- table & piece info
+
+/** Turns the table grid on (inches) or off (0). Placement only — nothing here is a rule. */
+export function setGrid(ctx: TableContext, actorId: string, size: unknown): OpResult {
+  const next = typeof size === 'number' && Number.isFinite(size)
+    ? Math.round(Math.max(0, Math.min(12, size)) * 2) / 2 : 0;
+  if (ctx.state.gridSize === next) return ok();
+  ctx.state.gridSize = next;
+  appendLog(ctx, next ? `${nameOf(ctx, actorId)} set the grid to ${next}".` : `${nameOf(ctx, actorId)} turned the grid off.`);
+  return ok();
+}
+
+/** Renames pieces and/or sets their description. Both live in the piece's face and are display
+ *  only — the table never reads them as anything but text. */
+export function setPieceInfo(ctx: TableContext, playerId: string, ids: string[], name: unknown, description: unknown): OpResult {
+  const newName = name === undefined ? undefined : cleanText(name, 60);
+  const newDescription = description === undefined ? undefined : cleanText(description, 280);
+  if (newName === undefined && newDescription === undefined) return fail();
+  if (newName === '') return fail('A piece needs a name.');
+  let changed = 0;
+  let blocked: PieceState | undefined;
+  let pinned = false;
+  for (const id of ids) {
+    const piece = ctx.state.pieces.get(id);
+    if (!piece) continue;
+    if (piece.locked) { pinned = true; continue; }
+    if (lockedByOther(piece, playerId)) { blocked = piece; continue; }
+    const face = faceOf(piece);
+    if (!face) continue;
+    const next: PieceFace = { ...face };
+    if (newName !== undefined) next.name = newName;
+    if (newDescription !== undefined) {
+      if (newDescription) next.description = newDescription;
+      else delete next.description;
+    }
+    piece.face = JSON.stringify(next);
+    changed++;
+  }
+  if (!changed) return fail(blocked ? lockNotice(ctx, blocked) : pinned ? LOCKED_NOTICE : undefined);
+  const what = changed === 1 ? 'a piece' : `${changed} pieces`;
+  if (newName !== undefined) appendLog(ctx, `${nameOf(ctx, playerId)} renamed ${what} to "${newName}".`);
+  else appendLog(ctx, `${nameOf(ctx, playerId)} described ${what}.`);
+  return ok();
+}
+
+// ---------------------------------------------------------------- saving & loading a table
+
+/** A save file is just another untrusted input: a table can be big, but not unbounded. */
+const SAVE_LIMITS = { pieces: 1200, bytes: 4 * 1024 * 1024 };
+
+const toInt = (v: unknown, fallback = 0) => (isFiniteNumber(v) ? Math.round(v) : fallback);
+const clampedInt = (v: unknown, lo: number, hi: number, fallback = lo) => Math.min(hi, Math.max(lo, toInt(v, fallback)));
+const hexColor = (v: unknown, fallback: string) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : fallback);
+
+/** Turns a `.sagatable.json` into a snapshot we are willing to put on the table. Every field is
+ *  re-validated the way a live message would be — a save can come from another table, an older
+ *  build, or a text editor. Bad entries are dropped rather than failing the whole file, but a
+ *  file where *nothing* survives is refused so a broken save can't quietly empty the table.
+ *  Accepts both the wrapped file and a bare snapshot (the shape the history stack stores). */
+export function sanitizeSnapshot(raw: unknown): string | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const wrapper = raw as Record<string, unknown>;
+  const body = (wrapper.table ?? wrapper) as Record<string, unknown>;
+  if (!Array.isArray(body.pieces) || !Array.isArray(body.markers) || !Array.isArray(body.notes)) return null;
+  if (body.pieces.length > SAVE_LIMITS.pieces || body.markers.length > LIMITS.markers || body.notes.length > LIMITS.notes) return null;
+
+  const used = new Set<string>();
+  const takeId = (v: unknown) => {
+    const s = typeof v === 'string' ? v.trim() : '';
+    if (!/^[\w.-]{1,40}$/.test(s) || used.has(s)) return '';
+    used.add(s);
+    return s;
+  };
+
+  const pieces: TableSnapshot['pieces'] = [];
+  for (const entry of body.pieces) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const r = entry as Record<string, unknown>;
+    const id = takeId(r.id);
+    if (!id) continue;
+    let face: PieceFace | null = null;
+    try { face = sanitizeFace(typeof r.face === 'string' ? JSON.parse(r.face) : r.face); } catch { face = null; }
+    if (!face) continue;
+    const w = Math.min(60, Math.max(0.1, isFiniteNumber(r.w) ? r.w : face.w));
+    const h = Math.min(60, Math.max(0.1, isFiniteNumber(r.h) ? r.h : face.h));
+    const pos = clampToTable(isFiniteNumber(r.x) ? r.x : 0, isFiniteNumber(r.z) ? r.z : 0, w, h);
+    pieces.push({
+      id,
+      ownerId: typeof r.ownerId === 'string' ? r.ownerId.slice(0, 64) : '',
+      x: pos.x, z: pos.z, w, h,
+      rotation: ((toInt(r.rotation) % 360) + 360) % 360,
+      faceUp: r.faceUp !== false,
+      tapped: r.tapped === true,
+      order: clampedInt(r.order, 0, 0xffffffff, pieces.length),
+      lockedBy: '',
+      locked: r.locked === true,
+      face: JSON.stringify(face),
+      backImage: cleanImageUrl(r.backImage),
+      kind: face.kind,
+      orient: clampedInt(r.orient, 0, 5, 0),
+    });
+  }
+
+  const markers: TableSnapshot['markers'] = [];
+  for (const entry of body.markers) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const r = entry as Record<string, unknown>;
+    const id = takeId(r.id);
+    if (!id) continue;
+    const kind = MARKER_KINDS.find(k => k === r.kind);
+    if (!kind) continue;
+    const pos = clampToTable(isFiniteNumber(r.x) ? r.x : 0, isFiniteNumber(r.z) ? r.z : 0);
+    const attachedTo = typeof r.attachedTo === 'string' && used.has(r.attachedTo) ? r.attachedTo : '';
+    markers.push({
+      id, kind, label: cleanText(r.label, 16), value: clampedInt(r.value, -99, 999, 1),
+      x: pos.x, z: pos.z, lockedBy: '', attachedTo,
+      ox: attachedTo && isFiniteNumber(r.ox) ? r.ox : 0,
+      oz: attachedTo && isFiniteNumber(r.oz) ? r.oz : 0,
+      order: clampedInt(r.order, 0, 0xffffffff, markers.length),
+      rolls: clampedInt(r.rolls, 0, 65535, 0),
+    });
+  }
+
+  const notes: TableSnapshot['notes'] = [];
+  for (const entry of body.notes) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const r = entry as Record<string, unknown>;
+    const id = takeId(r.id);
+    const text = cleanText(r.text, 280);
+    if (!id || !text) continue;
+    const pos = clampToTable(isFiniteNumber(r.x) ? r.x : 0, isFiniteNumber(r.z) ? r.z : 0);
+    notes.push({ id, text, author: cleanText(r.author, 24), x: pos.x, z: pos.z, lockedBy: '', order: clampedInt(r.order, 0, 0xffffffff, notes.length) });
+  }
+
+  const submitted = body.pieces.length + body.markers.length + body.notes.length;
+  if (!pieces.length && !markers.length && !notes.length && submitted > 0) return null;
+
+  const counterNames: string[] = [];
+  for (const name of Array.isArray(body.counterNames) ? body.counterNames : []) {
+    const key = cleanCounterName(name);
+    if (key && !counterNames.includes(key) && counterNames.length < MAX_COUNTERS) counterNames.push(key);
+  }
+
+  const counters: Record<string, Record<string, number>> = {};
+  const rawCounters = (body.counters ?? {}) as Record<string, unknown>;
+  for (const [playerId, row] of Object.entries(rawCounters)) {
+    if (!/^[\w-]{1,64}$/.test(playerId) || typeof row !== 'object' || row === null) continue;
+    const values: Record<string, number> = {};
+    for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+      if (counterNames.includes(key) && isFiniteNumber(value)) values[key] = Math.max(-COUNTER_LIMIT, Math.min(COUNTER_LIMIT, Math.round(value)));
+    }
+    counters[playerId] = values;
+  }
+
+  const rawLook = (body.look ?? {}) as Record<string, unknown>;
+  const snapshot: TableSnapshot = {
+    v: 1,
+    pieces, markers, notes, counterNames, counters,
+    look: {
+      felt: hexColor(rawLook.felt, DEFAULT_FELT),
+      image: cleanImageUrl(rawLook.image),
+      // The client parses these defensively (parseBackdrop / parseAtmosphere fall back to the
+      // default for anything odd), so they only need a length cap here.
+      backdrop: typeof rawLook.backdrop === 'string' ? rawLook.backdrop.slice(0, 2000) : '',
+      atmosphere: typeof rawLook.atmosphere === 'string' ? rawLook.atmosphere.slice(0, 200) : '',
+    },
+    gridSize: typeof body.gridSize === 'number' && Number.isFinite(body.gridSize)
+      ? Math.round(Math.max(0, Math.min(12, body.gridSize)) * 2) / 2 : 0,
+  };
+  return JSON.stringify(snapshot);
+}
+
+/** This table as a self-describing save file the tester keeps on their own disk. */
+export function saveTable(ctx: TableContext): { json: string; filename: string } {
+  const json = JSON.stringify({
+    format: 'saga-table',
+    version: 1,
+    roomCode: ctx.state.roomCode,
+    savedAt: new Date().toISOString(),
+    table: JSON.parse(snapshotOf(ctx.state)) as unknown,
+  });
+  return { json, filename: `${ctx.state.roomCode || 'SAGA'}.sagatable.json` };
+}
+
+/** Replaces the table with a saved one. Undoable, so a wrong file is one Ctrl+Z away. */
+export function loadTable(ctx: TableContext, playerId: string, json: unknown): OpResult {
+  if (typeof json !== 'string' || json.length > SAVE_LIMITS.bytes) return fail('That save file is too big to load.');
+  let parsed: unknown;
+  try { parsed = JSON.parse(json); } catch { return fail('That file is not valid JSON.'); }
+  const snapshot = sanitizeSnapshot(parsed);
+  if (!snapshot) return fail('That does not look like a SAGA table save.');
+  if (!restoreSnapshot(ctx.state, snapshot)) return fail('That save could not be restored.');
+  // Ids and draw order came from another table, so make sure the next thing we create can't
+  // collide with something we just loaded.
+  let maxId = 0, maxOrder = 0;
+  for (const item of [...ctx.state.pieces.values(), ...ctx.state.markers.values(), ...ctx.state.notes.values()]) {
+    maxId = Math.max(maxId, Number(item.id.replace(/^\D+/, '')) || 0);
+    maxOrder = Math.max(maxOrder, item.order);
+  }
+  ctx.nextId = Math.max(ctx.nextId, maxId + 1);
+  ctx.nextOrder = Math.max(ctx.nextOrder, maxOrder + 1);
+  appendLog(ctx, `${nameOf(ctx, playerId)} loaded a saved table.`);
   return ok();
 }

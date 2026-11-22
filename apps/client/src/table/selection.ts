@@ -14,6 +14,9 @@ class UiState {
   keysOpen = false;
   /** Screen rectangle being dragged out right now, for the on-screen box. */
   box: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  /** The piece a held piece would snap onto if released now — highlighted so a snap is never a
+   *  surprise. Owned by the drag (see dragging.ts), cleared when the drag ends. */
+  snapTarget: string | null = null;
   private lastBox = 0;
   version = 0;
   private lastOrbit = 0;
@@ -27,6 +30,8 @@ class UiState {
   toggle(id: string) { const s = new Set(this.selected); if (s.has(id)) s.delete(id); else s.add(id); this.selected = s; this.changed(); }
   clear() { if (this.selected.size || this.menu) { this.selected = new Set(); this.menu = null; this.changed(); } }
   hover(id: string | null) { if (this.hovered !== id) { this.hovered = id; this.changed(); } }
+  /** Called at pointer-move rate, so it only re-renders when the target actually changes. */
+  setSnapTarget(id: string | null) { if (this.snapTarget !== id) { this.snapTarget = id; this.changed(); } }
   /** True right after a right-drag orbit — on Windows the contextmenu event fires on right-button
    *  *release*, so a piece under the cursor would otherwise get selected and pop a menu. */
   justOrbited() { return performance.now() - this.lastOrbit < 300; }

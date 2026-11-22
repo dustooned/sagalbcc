@@ -22,6 +22,8 @@ export const DRAG_LIFT = 1.1;
 const SEND_EVERY_MS = 50;
 const CLICK_SLOP_PX = 4;
 
+import { snapTargetFor } from '../pieces/snap.ts';
+
 export interface DragItem { id: string; x: number; z: number; w?: number; h?: number }
 
 // Gestures are judged in SCREEN pixels — what the hand actually did — so they feel the same at
@@ -84,13 +86,16 @@ export interface DragOptions {
   /** Touch: a second finger twisted around the holding finger. +1 = clockwise on screen. Fires
    *  once per TWIST_STEP of twist. */
   onTwist?: (dir: 1 | -1) => void;
+  /** The piece this drag would snap onto right now (null when it would land free). Only ever set
+   *  for a single-piece drag, because a group drop never snaps. */
+  onSnap?: (id: string | null) => void;
 }
 
 /** 60° of finger twist per 90° card turn: a comfortable wrist motion, not a twitchy one. */
 const TWIST_STEP = Math.PI / 3;
 
 export function beginDrag(start: { clientX: number; clientY: number; pointerId?: number }, list: DragItem[], opts: DragOptions = {}) {
-  const { onClick, onRoll, onTwist, throwable = !!onRoll } = opts;
+  const { onClick, onRoll, onTwist, onSnap, throwable = !!onRoll } = opts;
   // One hold at a time: a second finger landing on the same piece must not start a nested drag.
   // (A glide isn't a hold — you can grab the next die while the last one is still sliding.)
   if (holdingNow) return;
@@ -144,6 +149,15 @@ export function beginDrag(start: { clientX: number; clientY: number; pointerId?:
     if (!p) return;
     moved = true;
     for (const o of offsets) localDrag.set(o.id, clampToTable(p.x + o.dx, p.z + o.dz, o.w, o.h));
+    // Show what it would snap onto before the player commits. Group drags never snap, so this is
+    // only ever a single piece.
+    let snap: string | null = null;
+    if (!many && store.state) {
+      const held = store.piece(offsets[0].id);
+      const spot = localDrag.get(offsets[0].id);
+      if (held && spot) snap = snapTargetFor({ id: held.id, x: spot.x, z: spot.z, kind: held.kind, w: held.w, h: held.h }, store.state.pieces.values(), store.playerId);
+    }
+    onSnap?.(snap);
     const now = performance.now();
     hist.push({ t: now, sx: ev.clientX, sy: ev.clientY, x: p.x, z: p.z });
     while (hist.length > 1 && now - hist[0].t > HIST_WINDOW_MS) hist.shift();
@@ -157,6 +171,7 @@ export function beginDrag(start: { clientX: number; clientY: number; pointerId?:
     if (done) return;
     done = true;
     active = Math.max(0, active - 1);
+    onSnap?.(null);
     // A click that never moved puts it back exactly where it was (lifting shifts it slightly).
     const final = moved ? current() : list.map(i => ({ id: i.id, x: i.x, z: i.z }));
     for (const o of offsets) { localDrag.delete(o.id); gliding.delete(o.id); }
@@ -177,6 +192,7 @@ export function beginDrag(start: { clientX: number; clientY: number; pointerId?:
     if (ev && !isPrimary(ev)) return;
     stopListening();
     holdingNow = false;
+    onSnap?.(null); // the piece is no longer held, whatever it was near
     const v = throwable && moved ? releaseVelocity(hist) : null;
     if (v && v.screen > FLICK_PX_PER_MS) {
       onRoll?.();

@@ -32,6 +32,9 @@ export const HOTKEYS: { group: string; keys: [string[], string][] }[] = [
     [['Esc'], 'Select nothing'],
   ] },
   { group: 'Table', keys: [
+    [['Ctrl', 'Z'], 'Undo the last action'],
+    [['Ctrl', 'Shift', 'Z'], 'Redo'],
+    [['K'], 'Lock / unlock the selection (pinned pieces can’t be moved by anyone)'],
     [['N'], 'New note'],
     [['L'], 'Open / close the log'],
     [['H'], 'Hide / show panels'],

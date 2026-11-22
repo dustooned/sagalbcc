@@ -22,6 +22,22 @@ export interface ClientMessages {
   gather: { ids: string[]; shuffle?: boolean };
   clone: { id: string };
   remove: { ids: string[] };
+  /** Pin pieces to the table so nobody can move them, or unpin them again. */
+  setLock: { ids: string[]; locked: boolean };
+  /** Step the whole table back / forward one action. Anyone at the table may do it; the log
+   *  records who did, and the server keeps the depth in `undoCount` / `redoCount`. */
+  undo: Record<string, never>;
+  redo: Record<string, never>;
+  /** Ask the server for this table as a downloadable save file (it replies with `tableSaved`). */
+  saveTable: Record<string, never>;
+  /** Replace the table with a save file the tester picked. Undoable, like any other action. */
+  loadTable: { json: string };
+  /** Grid that loose pieces snap to when dropped, in inches. 0 turns it off. */
+  setGrid: { size: number };
+  /** Rename a piece and/or set the description shown in its menu. Undefined = leave alone. */
+  setPieceInfo: { ids: string[]; name?: string; description?: string };
+  /** Bring back the newest autosave, when the table offered one on joining. Undoable too. */
+  restoreAutosave: Record<string, never>;
   /** Spawns every piece in the kit onto the table (scattered, boards centered). Replaces nothing —
    * loading twice just adds more pieces, so a host can bring in several kits at once if they want. */
   loadKit: { kit: NormalizedKit; definitions: PieceDefinition[] };
@@ -49,6 +65,10 @@ export interface ServerMessages {
   notice: { text: string };
   pong: { t: number };
   kicked: { text: string };
+  /** A finished save file, ready to hand to the browser as a download. */
+  tableSaved: { json: string; filename: string };
+  /** A recent autosave is on disk; the first player at a fresh table may bring it back. */
+  resumable: { roomCode: string; savedAt: string; pieces: number; markers: number; notes: number };
 }
 
 export type StackAction = 'shuffle' | 'flip' | 'spread';

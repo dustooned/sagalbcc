@@ -16,6 +16,8 @@ export interface PieceDefinition {
   /** Physical size in inches — matches the table's 1-unit-per-inch scale directly. */
   w: number;
   h: number;
+  /** Free text the testers can edit; neither is ever a rule, just what it says. */
+  description?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -37,5 +39,6 @@ export interface PieceFace {
   model?: string;
   w: number;
   h: number;
+  description?: string;
   metadata?: Record<string, unknown>;
 }

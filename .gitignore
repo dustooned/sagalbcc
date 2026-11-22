@@ -4,3 +4,5 @@ Thumbs.db
 .env
 .data/
 apps/client/dist/
+# Scratch space for reverse-engineering notes and throwaway verification scripts.
+.rea/

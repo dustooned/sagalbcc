@@ -19,7 +19,7 @@ function mulberry32(seed: number) {
   };
 }
 
-function feltTexture(color: string) {
+function feltTexture(color: string, grid = 0) {
   const w = 1024, h = Math.round((w * TABLE_D) / TABLE_W);
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
@@ -29,6 +29,21 @@ function feltTexture(color: string) {
   const img = g.getImageData(0, 0, w, h), d = img.data;
   for (let i = 0; i < d.length; i += 4) { const n = (rand() - 0.5) * 14; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
   g.putImageData(img, 0, 0);
+  // Grid lines live in the felt itself: they're a painting on the table, not geometry, so they
+  // cost nothing and pick up the same lighting as everything else.
+  if (grid > 0) {
+    const px = w / TABLE_W;
+    g.strokeStyle = 'rgba(255,255,255,0.085)';
+    g.lineWidth = 1;
+    for (let x = -Math.floor(TABLE_W / 2 / grid) * grid; x <= TABLE_W / 2; x += grid) {
+      const cx = Math.round((x + TABLE_W / 2) * px) + 0.5;
+      g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, h); g.stroke();
+    }
+    for (let z = -Math.floor(TABLE_D / 2 / grid) * grid; z <= TABLE_D / 2; z += grid) {
+      const cy = Math.round((z + TABLE_D / 2) * px) + 0.5;
+      g.beginPath(); g.moveTo(0, cy); g.lineTo(w, cy); g.stroke();
+    }
+  }
   const grad = g.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, w * 0.62);
   grad.addColorStop(0, 'rgba(0,0,0,0)');
   grad.addColorStop(1, 'rgba(0,0,0,0.28)');
@@ -91,9 +106,9 @@ function Frame() {
   );
 }
 
-export function TableSurface({ felt, image }: { felt: string; image: string }) {
+export function TableSurface({ felt, image, grid }: { felt: string; image: string; grid: number }) {
   const color = /^#[0-9a-f]{6}$/i.test(felt) ? felt : DEFAULT_FELT;
-  const surface = useMemo(() => feltTexture(color), [color]);
+  const surface = useMemo(() => feltTexture(color, grid), [color, grid]);
   useEffect(() => () => surface.dispose(), [surface]);
   const overlay = useTableImage(image);
   return (

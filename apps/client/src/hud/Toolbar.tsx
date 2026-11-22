@@ -6,6 +6,7 @@ import { actions } from '../pieces/actions.ts';
 import { pickImageFile } from '../pieces/loadImage.ts';
 import { pickModelFile } from '../pieces/loadModel.ts';
 import { pickKitFile } from '../pieces/loadKit.ts';
+import { pickTableFile, saveTable } from '../pieces/saveTable.ts';
 import { useTable } from '../net/tableStore.ts';
 
 export function Toolbar() {
@@ -13,6 +14,7 @@ export function Toolbar() {
   // Starts collapsed on small screens so it doesn't cover the table.
   const [open, setOpen] = useState(() => window.innerWidth > 700);
   const host = t.isHost();
+  const grid = t.state?.gridSize ?? 0;
 
   return (
     <section className={`hud-panel tools ${open ? 'open' : ''}`}>
@@ -42,6 +44,19 @@ export function Toolbar() {
             <button className="btn small" onClick={() => actions.spawnMarker('d20')} title="Tap it to roll">🔷 D20</button>
             <button className="btn small" onClick={() => { const label = prompt('Marker label (e.g. FROZEN, SHIELD):'); if (label?.trim()) actions.spawnMarker('custom', label); }}>Custom…</button>
             <button className="btn small" onClick={() => { const text = prompt('Note for the table:'); if (text?.trim()) actions.addNote(text); }}>📝 Note…</button>
+          </div>
+          <div className="field"><span>SAVE</span></div>
+          <div className="row wrap">
+            <button className="btn small" onClick={saveTable} title="Download this table as a file you can keep">💾 Save table</button>
+            <button className="btn small" disabled={!!t.kitProgress} onClick={pickTableFile} title="Put a saved table back. It replaces what's on the table, and Ctrl+Z undoes it.">📂 Load table…</button>
+          </div>
+          <div className="field"><span>GRID</span></div>
+          <div className="row wrap">
+            {[0, 1, 2, 4].map(size => (
+              <button key={size} className={`btn small ${grid === size ? 'primary' : ''}`}
+                title={size ? `Snap dropped pieces to a ${size}-inch grid` : 'No grid — pieces land where you drop them'}
+                onClick={() => actions.setGrid(size)}>{size ? `${size}″` : 'Off'}</button>
+            ))}
           </div>
           <div className="row wrap">
             <button className="btn small danger" disabled={!host} title={host ? '' : 'Host only'} onClick={() => { if (confirm('Clear every piece, marker and note off the table?')) t.send('resetTable', {}); }}>Clear table</button>

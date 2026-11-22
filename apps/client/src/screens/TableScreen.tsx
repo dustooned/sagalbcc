@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { actions } from '../pieces/actions.ts';
 import { addImageFile, isTableMedia } from '../pieces/loadImage.ts';
 import { addModelFile } from '../pieces/loadModel.ts';
-import { loadKitFile } from '../pieces/loadKit.ts';
+import { loadTableFile } from '../pieces/saveTable.ts';
 import { showRoomInAddressBar } from '../net/invite.ts';
 import { store, useTable } from '../net/tableStore.ts';
 import { CameraPanel } from '../hud/CameraPanel.tsx';
@@ -13,6 +13,7 @@ import { HelpDialog } from '../hud/HelpDialog.tsx';
 import { LogPanel } from '../hud/LogPanel.tsx';
 import { ShortcutsSheet } from '../hud/ShortcutsSheet.tsx';
 import { Notices } from '../hud/Notices.tsx';
+import { Resumable } from '../hud/Resumable.tsx';
 import { RoomPanel } from '../hud/RoomPanel.tsx';
 import { TableLookPanel } from '../hud/TableLookPanel.tsx';
 import { Toolbar } from '../hud/Toolbar.tsx';
@@ -31,6 +32,11 @@ function useTableKeys(toggleHud: () => void) {
         ui.select([...store.state.pieces.values()].filter(p => !p.lockedBy || p.lockedBy === store.playerId).map(p => p.id));
         return;
       }
+      if ((e.ctrlKey || e.metaKey) && store.state) {
+        const combo = e.key.toLowerCase();
+        if (combo === 'z') { e.preventDefault(); if (e.shiftKey) actions.redo(); else actions.undo(); return; }
+        if (combo === 'y') { e.preventDefault(); actions.redo(); return; }
+      }
       if (e.ctrlKey || e.metaKey) return;
       if (e.code === 'Space') { ui.spaceHeld = true; e.preventDefault(); return; }
       const ids = ui.ordered(ui.targets(id => !!store.piece(id)));
@@ -43,6 +49,7 @@ function useTableKeys(toggleHud: () => void) {
         case 'f': if (e.shiftKey) actions.faceAll(ids); else actions.flip(ids); break;
         case 'a': actions.turnAround(ids); break;
         case 'c': actions.cloneAll(ids); break;
+        case 'k': actions.toggleLock(ids); break;
         case 'n': { const text = prompt('Note for the table:'); if (text?.trim()) actions.addNote(text); break; }
         case 'l': window.dispatchEvent(new Event('saga:toggle-log')); break;
         case 'h': toggleHud(); break;
@@ -86,11 +93,11 @@ function useKitDrop() {
       if (!file) return;
       // A textured OBJ arrives as several files (.obj + .mtl + images) or a .zip.
       if (files.some(f => /\.(obj|zip)$/i.test(f.name))) { void addModelFile(files); return; }
-      if (/\.json$/i.test(file.name)) void loadKitFile(file);
+      if (/\.json$/i.test(file.name)) void loadTableFile(file);
       else if (isTableMedia(file)) void addImageFile(file);
       // .glb loads; other 3D formats go the same way so they get the Blender export steps.
       else if (/\.(glb|gltf|blend|fbx|obj|stl|dae|3ds|usdz?)$/i.test(file.name)) void addModelFile(file);
-      else store.notify('Drop a .kittable.json from Kit Forge, a .lftdeck.json from Card Forge, a PNG/JPG/WebP/GIF image, a WebM/MP4 clip, or a .glb/.obj/.stl 3D model.');
+      else store.notify('Drop a .kittable.json from Kit Forge, a .lftdeck.json from Card Forge, a saved table (.sagatable.json), a PNG/JPG/WebP/GIF image, a WebM/MP4 clip, or a .glb/.obj/.stl 3D model.');
     };
     window.addEventListener('dragover', onOver);
     window.addEventListener('dragleave', onLeave);
@@ -137,7 +144,7 @@ export function TableScreen() {
       {!hudHidden && (
         <>
           <div className="hud tl"><RoomPanel /></div>
-          <div className="hud tc"><Notices /></div>
+          <div className="hud tc"><Notices /><Resumable /></div>
           <div className="hud cc"><EmptyTable /></div>
           <div className="hud bl"><LogPanel /><CameraPanel /></div>
           <div className="hud br"><TableLookPanel /><Toolbar /></div>

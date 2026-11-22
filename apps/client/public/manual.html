@@ -25,7 +25,7 @@ a{color:var(--accent)}
 <body>
 <header><h1>🎲 SAGA Manual</h1><p>A live 3D playtest table for your group. Runs in the browser on PCs, tablets and phones.</p></header>
 <main>
-<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#dice">Dice &amp; markers</a><a href="#formats">File formats</a><a href="#animated">Animated</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
+<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#save">Saving</a><a href="#grid">Grid</a><a href="#dice">Dice &amp; markers</a><a href="#formats">File formats</a><a href="#animated">Animated</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
 
 <section id="start"><h2>Quick start</h2>
 <ol>
@@ -66,17 +66,34 @@ a{color:var(--accent)}
 <tr><td><kbd>C</kbd></td><td>Clone</td></tr>
 <tr><td><kbd>+</kbd> / <kbd>−</kbd></td><td>Bigger / smaller</td></tr>
 <tr><td><kbd>T</kbd></td><td>Tap (turn sideways)</td></tr>
+<tr><td><kbd>K</kbd></td><td>Lock / unlock the selection. A locked piece can't be moved, turned, flipped, resized or deleted by anyone — handy for a board you don't want nudged. Unlock it (or press <kbd>K</kbd> again) to move it. Cloning a locked piece still works and gives you an unlocked copy.</td></tr>
 <tr><td><kbd>R</kbd></td><td>Shuffle — the stack under the pointer, or several selected pieces into one stack</td></tr>
 <tr><td><kbd>G</kbd></td><td>Gather the selected pieces into one stack (no shuffle)</td></tr>
 <tr><td><kbd>U</kbd> / <kbd>Shift</kbd>+<kbd>U</kbd></td><td>3D model upside down or on its side? Stand it upright (steps through all 6 sides)</td></tr>
 <tr><td><kbd>1</kbd> – <kbd>6</kbd></td><td>3D model: <kbd>1</kbd> upright, <kbd>2</kbd> upside down, <kbd>3</kbd> face down, <kbd>4</kbd> face up, <kbd>5</kbd> on its left side, <kbd>6</kbd> on its right side. Also in the right-click menu under "Tip it over…".</td></tr>
 <tr><td><kbd>Delete</kbd></td><td>Delete selected</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo the last thing anyone did at the table — a move, flip, shuffle, size change, note, point change or kit load. One drag is one undo step, so <kbd>Ctrl</kbd>+<kbd>Z</kbd> puts a whole move back, not a fraction of it.</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Redo. Doing something new after undoing clears the redo.</td></tr>
 <tr><td><kbd>Esc</kbd></td><td>Deselect</td></tr>
 <tr><td><kbd>N</kbd></td><td>New note</td></tr>
 <tr><td><kbd>L</kbd></td><td>Open / close the log</td></tr>
 <tr><td><kbd>H</kbd></td><td>Hide / show all panels</td></tr>
 <tr><td>📜 Log (bottom left)</td><td>Everything that happens at the table: flips, shuffles, dice rolls (with the die and number), point changes, who joined. Folded, it still shows the latest line.</td></tr>
 </table>
+</section>
+
+<section id="save"><h2>Saving the table</h2>
+<p><b>💾 Save table</b> (in 🧰 Table tools) downloads a <code>.sagatable.json</code> file holding everything on the table: every piece with its position, size, rotation, face and lock, every marker and note, the point counters, and the table look. Nothing is uploaded — the file lands in your own Downloads folder.</p>
+<p>Put it back later with <b>📂 Load table…</b>, or by dropping the file onto the page. Loading <b>replaces</b> what's on the table, so it asks first; <kbd>Ctrl</kbd>+<kbd>Z</kbd> restores the previous table if you picked the wrong file.</p>
+<p>Pictures and 3D models are referenced by the id this server gave them, so a save file can never pull in a picture from somewhere else. If those uploaded files are gone — a redeploy that lost the uploads folder, say — the pieces come back without their artwork, though everything else about them does.</p>
+<p><b>The table also saves itself.</b> Every couple of minutes the server writes the table to its own disk. If a session ends without anyone saving — a crash, a redeploy, a laptop closing — then the next person to open a table gets a bar at the top of the screen: <i>"Saved table SAGA-82K — Sat 4:12 PM, 23 pieces."</i> Press <b>Restore</b> and it is back; <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes the restore if you did not want it.</p>
+<p>Between autosaves and manual saves the table survives a restart, but not instantly — the last couple of minutes before a crash are gone. Save by hand if you are about to close the laptop mid-playtest.</p>
+</section>
+
+<section id="grid"><h2>Grid &amp; naming pieces</h2>
+<p>🧰 Table tools → <b>GRID</b> puts a 1″, 2″ or 4″ grid on the felt. With it on, a piece you drop clicks to the nearest line — and a piece dropped near a stack still snaps onto the stack instead. The grid is shared like the felt, and it is saved with the table.</p>
+<p><b>Right-click a piece</b> → <b>✏️ Rename…</b> changes what the log and the menu call it; <b>📝 Note on the piece…</b> adds a description that appears under the name in that same menu. Neither is a rule — they're labels your party can read.</p>
+<p>A pinned piece shows a small padlock and a grey ring. Press <kbd>K</kbd> or use the menu to free it.</p>
 </section>
 
 <section id="touch"><h2>Touch (tablets &amp; phones)</h2>

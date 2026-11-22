@@ -14,6 +14,8 @@ export interface SyncedPiece {
   tapped: boolean;
   order: number;
   lockedBy: string;
+  /** Pinned by a player: nobody can move, turn, flip, resize or delete it until it's unlocked. */
+  locked: boolean;
   face: string;
   backImage: string;
   kind: 'card' | 'piece' | 'board';
@@ -74,4 +76,9 @@ export interface SyncedTable {
   lookBackdrop: string;
   lookAtmosphere: string;
   counterNames: { length: number; [Symbol.iterator](): Iterator<string> };
+  /** Inches between grid lines dropped pieces snap to; 0 = no grid. */
+  gridSize: number;
+  /** Depth of the server's undo/redo stacks, so the menus can grey out when there's nothing left. */
+  undoCount: number;
+  redoCount: number;
 }
