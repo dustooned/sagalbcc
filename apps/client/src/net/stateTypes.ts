@@ -33,9 +33,23 @@ export interface SyncedMap<T> {
 export interface SyncedPlayer {
   id: string;
   name: string;
+  /** -1 for a spectator. Use seatColor() / store.viewSeat() rather than indexing by it. */
   seat: number;
   connected: boolean;
   counters: SyncedMap<number>;
+  /** Presence: pointer on the felt. pointerAt is a server tick that changes on every update
+   *  (0 = hidden) — watch it change; don't compare it with the local clock. */
+  pointerX: number;
+  pointerZ: number;
+  pointerAt: number;
+  /** A one-off pulse; pingAt changes on every ping (0 = never pinged). */
+  pingX: number;
+  pingZ: number;
+  pingAt: number;
+  /** Watching without a seat: read-only. */
+  spectator: boolean;
+  /** Co-host: may kick, ban and clear the table. */
+  promoted: boolean;
 }
 
 export interface SyncedMarker {
@@ -81,4 +95,6 @@ export interface SyncedTable {
   /** Depth of the server's undo/redo stacks, so the menus can grey out when there's nothing left. */
   undoCount: number;
   redoCount: number;
+  /** Lowercased banned names (session state; never in saves or undo). */
+  bans: { length: number; [Symbol.iterator](): Iterator<string> };
 }

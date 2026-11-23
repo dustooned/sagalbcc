@@ -5,7 +5,7 @@
 // faceUp only switches which image (front or back) is shown.
 import { randomInt } from 'node:crypto';
 import {
-  ATMOSPHERE_KINDS, BACKDROP_EFFECTS, BACKDROP_MODES, DEFAULT_FELT, DIE_KINDS, DIE_SIDES, MAX_COUNTERS, MAX_PLAYERS, clampToTable,
+  ATMOSPHERE_KINDS, BACKDROP_EFFECTS, BACKDROP_MODES, DEFAULT_FELT, DIE_KINDS, DIE_SIDES, MAX_BANS, MAX_COUNTERS, MAX_PLAYERS, MAX_SPECTATORS, clampToTable,
   type MarkerKind, type NormalizedKit, type PieceDefinition, type PieceFace, type PieceKind,
 } from '@kitforge/shared-types';
 import { MarkerState, NoteState, PieceState, PlayerState, TableState } from './TableState.ts';
@@ -152,31 +152,54 @@ function shuffleInPlace<T>(ctx: TableContext, list: T[]) {
 
 export interface JoinResult { player?: PlayerState; reclaimed?: boolean; error?: string }
 
-export function addPlayer(ctx: TableContext, opts: { name: unknown; reclaimPlayerId?: unknown; newId: string }): JoinResult {
+/** How a name is stored in, and compared against, the ban list. */
+const banKey = (name: string) => name.toLowerCase().slice(0, 24);
+
+export function addPlayer(ctx: TableContext, opts: { name: unknown; reclaimPlayerId?: unknown; newId: string; spectate?: unknown }): JoinResult {
   const players = [...ctx.state.players.values()];
+  const spectate = opts.spectate === true;
   const name = cleanText(opts.name, 24) || `Player ${players.length + 1}`;
+  // Checked before anything else — a banned name can't reclaim an old seat either.
+  if (ctx.state.bans.includes(banKey(name))) return { error: `The name "${name}" has been banned from this table by the host.` };
+  // Only take back a row of the same kind: a spectator must never land in a seated player's
+  // row (or the reverse) just because the names match.
   const byId = typeof opts.reclaimPlayerId === 'string' ? ctx.state.players.get(opts.reclaimPlayerId) : undefined;
-  const reclaim = (byId && !byId.connected ? byId : undefined)
-    ?? players.find(p => !p.connected && p.name.toLowerCase() === name.toLowerCase());
+  const reclaim = (byId && !byId.connected && byId.spectator === spectate ? byId : undefined)
+    ?? players.find(p => !p.connected && p.spectator === spectate && p.name.toLowerCase() === name.toLowerCase());
   if (reclaim) {
     reclaim.connected = true;
     appendLog(ctx, `${reclaim.name} reconnected.`);
     return { player: reclaim, reclaimed: true };
   }
-  const used = new Set(players.map(p => p.seat));
   let seat = -1;
-  for (let s = 0; s < MAX_PLAYERS; s++) if (!used.has(s)) { seat = s; break; }
-  if (seat < 0) return { error: `The table is full (${MAX_PLAYERS} seats). The host can remove a disconnected player to free a seat.` };
+  if (spectate) {
+    if (players.filter(p => p.spectator).length >= MAX_SPECTATORS) return { error: `This table already has ${MAX_SPECTATORS} spectators watching.` };
+  } else {
+    const used = new Set(players.filter(p => !p.spectator).map(p => p.seat));
+    for (let s = 0; s < MAX_PLAYERS; s++) if (!used.has(s)) { seat = s; break; }
+    if (seat < 0) return { error: `The table is full (${MAX_PLAYERS} seats). You can still watch without a seat, or the host can remove a disconnected player to free one.` };
+  }
   const player = new PlayerState();
   player.id = opts.newId;
   player.name = name;
   player.seat = seat;
   player.connected = true;
+  player.spectator = spectate;
   for (const k of ctx.state.counterNames) player.counters.set(k, 0);
   ctx.state.players.set(player.id, player);
-  if (!ctx.state.hostId) ctx.state.hostId = player.id;
-  appendLog(ctx, `${name} joined the table.`);
+  // A spectator never hosts; a table opened by a spectator gets its host when someone sits down.
+  if (!ctx.state.hostId && !spectate) ctx.state.hostId = player.id;
+  appendLog(ctx, spectate ? `${name} is watching the table.` : `${name} joined the table.`);
   return { player };
+}
+
+/** A spectator whose connection is gone for good simply leaves — they hold no seat, no pieces
+ *  and no counters worth coming back to. Returns true if a row was removed. */
+export function dropSpectator(ctx: TableContext, playerId: string): boolean {
+  const p = ctx.state.players.get(playerId);
+  if (!p?.spectator) return false;
+  ctx.state.players.delete(playerId);
+  return true;
 }
 
 export function releaseLocks(ctx: TableContext, playerId: string) {
@@ -188,27 +211,131 @@ export function setConnected(ctx: TableContext, playerId: string, connected: boo
   const p = ctx.state.players.get(playerId);
   if (!p) return;
   p.connected = connected;
-  if (!connected) releaseLocks(ctx, playerId);
+  if (!connected) { releaseLocks(ctx, playerId); p.pointerAt = 0; }
 }
 
+/** Only a seated, connected player can become host — never a spectator. */
 export function reassignHost(ctx: TableContext) {
   const host = ctx.state.players.get(ctx.state.hostId);
-  if (host?.connected) return;
-  const next = [...ctx.state.players.values()].filter(p => p.connected).sort((a, b) => a.seat - b.seat)[0];
+  if (host?.connected && !host.spectator) return;
+  const next = [...ctx.state.players.values()]
+    .filter(p => p.connected && !p.spectator && p.seat >= 0)
+    .sort((a, b) => a.seat - b.seat)[0];
   if (next && next.id !== ctx.state.hostId) {
     ctx.state.hostId = next.id;
     appendLog(ctx, `${next.name} is now the host.`);
   }
 }
 
-export function kick(ctx: TableContext, actorId: string, targetId: unknown): OpResult {
-  if (actorId !== ctx.state.hostId) return fail('Only the host can remove players.');
+/** Host or co-host. A spectator is never promoted, so this never lets one through. */
+export function isStaff(ctx: TableContext, actorId: string): boolean {
+  return !!actorId && (actorId === ctx.state.hostId || ctx.state.players.get(actorId)?.promoted === true);
+}
+
+/** Shared by kick and ban: who may be removed, and by whom. Nobody removes themselves or the host. */
+function removable(ctx: TableContext, actorId: string, targetId: unknown, verb: string): PlayerState | OpResult {
+  if (!isStaff(ctx, actorId)) return fail(`Only the host or a co-host can ${verb} players.`);
   if (typeof targetId !== 'string' || targetId === actorId) return fail();
   const target = ctx.state.players.get(targetId);
   if (!target) return fail();
-  for (const piece of ctx.state.pieces.values()) if (piece.lockedBy === targetId) piece.lockedBy = '';
-  ctx.state.players.delete(targetId);
+  if (targetId === ctx.state.hostId) return fail(`The host can't be ${verb === 'ban' ? 'banned' : 'removed'}.`);
+  return target;
+}
+
+function removePlayer(ctx: TableContext, target: PlayerState) {
+  releaseLocks(ctx, target.id);
+  ctx.state.players.delete(target.id);
+}
+
+export function kick(ctx: TableContext, actorId: string, targetId: unknown): OpResult {
+  const target = removable(ctx, actorId, targetId, 'remove');
+  if ('ok' in target) return target;
+  removePlayer(ctx, target);
   appendLog(ctx, `${nameOf(ctx, actorId)} removed ${target.name} from the table.`);
+  return ok();
+}
+
+/** Removes a player and bans their name from rejoining this table.
+ *
+ *  This is a name-based ban and it is trivially spoofable: anyone can rejoin under a different
+ *  name. It is a classroom convenience behind the table's shared password, not a security
+ *  boundary — the password is the boundary. Bans are session state: they are not in undo
+ *  snapshots or save files, so no undo or loaded table can lift one. */
+export function ban(ctx: TableContext, actorId: string, targetId: unknown): OpResult {
+  const target = removable(ctx, actorId, targetId, 'ban');
+  if ('ok' in target) return target;
+  const key = banKey(target.name);
+  if (!ctx.state.bans.includes(key)) {
+    if (ctx.state.bans.length >= MAX_BANS) return fail(`The ban list is full (${MAX_BANS}). Unban someone first.`);
+    ctx.state.bans.push(key);
+  }
+  removePlayer(ctx, target);
+  appendLog(ctx, `${nameOf(ctx, actorId)} banned ${target.name} from the table.`);
+  return ok();
+}
+
+export function unban(ctx: TableContext, actorId: string, name: unknown): OpResult {
+  if (!isStaff(ctx, actorId)) return fail('Only the host or a co-host can unban players.');
+  const key = banKey(cleanText(name, 24));
+  const i = ctx.state.bans.indexOf(key);
+  if (!key || i < 0) return fail('That name is not banned.');
+  ctx.state.bans.splice(i, 1);
+  appendLog(ctx, `${nameOf(ctx, actorId)} lifted the ban on "${key}".`);
+  return ok();
+}
+
+/** Host only: make a seated player a co-host, or take it away (the host may demote themselves
+ *  too). There is still exactly one host — promotion never touches hostId. Permission state, so
+ *  callers must not wrap this in `undoable`. */
+export function promote(ctx: TableContext, actorId: string, targetId: unknown, promoted: unknown): OpResult {
+  if (actorId !== ctx.state.hostId) return fail('Only the host can choose co-hosts.');
+  if (typeof promoted !== 'boolean' || typeof targetId !== 'string') return fail();
+  const target = ctx.state.players.get(targetId);
+  if (!target) return fail();
+  if (promoted && target.spectator) return fail('Spectators can’t be co-hosts. They need to join with a seat first.');
+  if (target.promoted === promoted) return ok();
+  target.promoted = promoted;
+  appendLog(ctx, promoted
+    ? `${nameOf(ctx, actorId)} made ${target.name} a co-host.`
+    : `${nameOf(ctx, actorId)} removed ${target.name} as co-host.`);
+  return ok();
+}
+
+// ---------------------------------------------------------------- presence (pointers)
+//
+// Pointers and pings are presence, not table state: they are never undoable and never logged,
+// and they are high-frequency, so the room's token bucket is their only rate limit.
+
+/** A uint32 tick that is never 0 (0 means hidden) and always differs from the last one, so a
+ *  client can tell an update happened even when two land in the same millisecond. Wraps every
+ *  ~49 days; clients only watch it change, never compare it to their own clock. */
+function tick(now: number, previous: number): number {
+  let t = (Math.floor(now) >>> 0) || 1;
+  if (t === previous) t = ((t + 1) >>> 0) || 1;
+  return t;
+}
+
+/** Your pointer on the felt; omit both coordinates to hide it. Clamped to the table's edge. */
+export function setPointer(ctx: TableContext, playerId: string, x: unknown, z: unknown, now = Date.now()): OpResult {
+  const p = ctx.state.players.get(playerId);
+  if (!p) return fail();
+  if (x === undefined && z === undefined) { p.pointerAt = 0; return ok(); }
+  if (!isFiniteNumber(x) || !isFiniteNumber(z)) return fail();
+  const at = clampToTable(x, z, 0, 0);
+  p.pointerX = at.x;
+  p.pointerZ = at.z;
+  p.pointerAt = tick(now, p.pointerAt);
+  return ok();
+}
+
+/** A one-off pulse at a spot on the felt. */
+export function pingPointer(ctx: TableContext, playerId: string, x: unknown, z: unknown, now = Date.now()): OpResult {
+  const p = ctx.state.players.get(playerId);
+  if (!p || !isFiniteNumber(x) || !isFiniteNumber(z)) return fail();
+  const at = clampToTable(x, z, 0, 0);
+  p.pingX = at.x;
+  p.pingZ = at.z;
+  p.pingAt = tick(now, p.pingAt);
   return ok();
 }
 
@@ -659,7 +786,7 @@ export function setTableLook(ctx: TableContext, actorId: string, raw: { felt?: u
 
 /** Host: clears every piece, marker and note off the table (a fresh start for the same players). */
 export function clearTable(ctx: TableContext, actorId: string): OpResult {
-  if (actorId !== ctx.state.hostId) return fail('Only the host can clear the table.');
+  if (!isStaff(ctx, actorId)) return fail('Only the host or a co-host can clear the table.');
   ctx.state.pieces.clear();
   ctx.state.markers.clear();
   ctx.state.notes.clear();
@@ -676,7 +803,7 @@ const cleanCounterName = (v: unknown) => (typeof v === 'string' ? v.replace(/[^\
 export function setCounter(ctx: TableContext, actorId: string, msg: { playerId?: unknown; key?: unknown; delta?: unknown; value?: unknown }): OpResult {
   const p = typeof msg.playerId === 'string' ? ctx.state.players.get(msg.playerId) : undefined;
   const key = typeof msg.key === 'string' ? msg.key : '';
-  if (!p || !ctx.state.counterNames.includes(key)) return fail();
+  if (!p || p.spectator || !ctx.state.counterNames.includes(key)) return fail();
   const before = p.counters.get(key) ?? 0;
   const raw = typeof msg.value === 'number' ? msg.value : before + (typeof msg.delta === 'number' ? msg.delta : 0);
   if (!Number.isFinite(raw)) return fail();

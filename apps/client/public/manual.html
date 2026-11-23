@@ -25,7 +25,7 @@ a{color:var(--accent)}
 <body>
 <header><h1>🎲 SAGA Manual</h1><p>A live 3D playtest table for your group. Runs in the browser on PCs, tablets and phones.</p></header>
 <main>
-<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#save">Saving</a><a href="#grid">Grid</a><a href="#dice">Dice &amp; markers</a><a href="#formats">File formats</a><a href="#animated">Animated</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
+<nav><a href="#start">Quick start</a><a href="#add">Adding things</a><a href="#mouse">Mouse &amp; keys</a><a href="#touch">Touch</a><a href="#people">Pointers &amp; people</a><a href="#save">Saving</a><a href="#grid">Grid</a><a href="#dice">Dice &amp; markers</a><a href="#formats">File formats</a><a href="#animated">Animated</a><a href="#models">3D models</a><a href="#help">Troubleshooting</a></nav>
 
 <section id="start"><h2>Quick start</h2>
 <ol>
@@ -46,7 +46,7 @@ a{color:var(--accent)}
 <tr><td><b>Markers &amp; notes</b></td><td>+1, −1, DMG, STATUS, custom labels, notes, and dice.</td></tr>
 <tr><td><b>Drag &amp; drop</b></td><td>Drop any of the files above anywhere on the page.</td></tr>
 </table>
-<p><b>Clear table</b> is host-only.</p>
+<p><b>Clear table</b> is for the host and co-hosts only (see <a href="#people">Pointers &amp; people</a>).</p>
 </section>
 
 <section id="mouse"><h2>Mouse &amp; keyboard</h2>
@@ -78,8 +78,32 @@ a{color:var(--accent)}
 <tr><td><kbd>N</kbd></td><td>New note</td></tr>
 <tr><td><kbd>L</kbd></td><td>Open / close the log</td></tr>
 <tr><td><kbd>H</kbd></td><td>Hide / show all panels</td></tr>
+<tr><td><kbd>P</kbd></td><td>Hide / show your pointer to the other players</td></tr>
+<tr><td><kbd>Alt</kbd>+click</td><td>Ping a spot — a pulse everyone sees</td></tr>
 <tr><td>📜 Log (bottom left)</td><td>Everything that happens at the table: flips, shuffles, dice rolls (with the die and number), point changes, who joined. Folded, it still shows the latest line.</td></tr>
 </table>
+</section>
+
+<section id="people"><h2>Pointers &amp; people</h2>
+<h3>Pointers and pings</h3>
+<p>Everyone sees where everyone else is pointing: a ring in that player's colour follows their mouse over the felt and fades out about two seconds after they stop moving. You never see your own ring.</p>
+<table>
+<tr><td><kbd>Alt</kbd>+click</td><td>Ping: a pulse on the spot you click, so you can say "this one" without describing it. Works on top of a piece too — it pings instead of picking the piece up.</td></tr>
+<tr><td><kbd>P</kbd></td><td>Stop sharing your pointer (press again to share it). Only affects you.</td></tr>
+</table>
+<p>Pointers come from a mouse or pen; on a phone or tablet your finger isn't broadcast. Pointers and pings aren't part of the table: they are never undone, saved or written to the log.</p>
+
+<h3>Watching without a seat</h3>
+<p>A table seats 8. Anyone can also join as a <b>spectator</b> — tick <b>👁 Watch without taking a seat</b> before joining. Spectators see everything live and can point and ping, but they can't move, add or change anything, and they don't use up a seat, so an instructor can watch a full table. Up to 8 people can watch at once. They're listed under the party as <b>👁 WATCHING</b>.</p>
+
+<h3>Host, co-hosts and bans</h3>
+<p>The person who opens a table is the host (👑). If the host leaves, the next seated player takes over — a spectator never becomes host.</p>
+<table>
+<tr><td><b>☆ / ⭐</b></td><td>Host only: make a seated player a <b>co-host</b>. A co-host can remove and ban players and clear the table, the same as the host. Click the ⭐ again to take it back — it's immediate. Co-hosts show a ⭐ next to their name.</td></tr>
+<tr><td><b>✕</b></td><td>Host or co-host: remove a player. They can join again.</td></tr>
+<tr><td><b>🚫</b></td><td>Host or co-host: remove a player <i>and</i> stop that name from rejoining this table. Banned names are listed under the party with an <b>Unban</b> button.</td></tr>
+</table>
+<div class="tip">A ban is by name, so somebody determined can rejoin under a different name. It's a classroom convenience behind the class password, not security. Nobody can remove or ban the host. Bans and co-hosts last as long as the table is open: undo never brings a banned player back, and saved tables don't include bans.</div>
 </section>
 
 <section id="save"><h2>Saving the table</h2>

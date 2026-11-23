@@ -19,12 +19,14 @@ function friendly(err: unknown) {
   return msg;
 }
 
-function attach(room: Room) {
+function attach(room: Room, spectating = false) {
   store.room = room;
   store.ready = false;
   store.status = 'online';
   store.showResume(null);
-  const saveSeat = () => { if (store.playerId) session.setSeat({ roomId: room.roomId, reconnectionToken: room.reconnectionToken, playerId: store.playerId }); };
+  const saveSeat = () => {
+    if (store.playerId) session.setSeat({ roomId: room.roomId, reconnectionToken: room.reconnectionToken, playerId: store.playerId, spectate: spectating || undefined });
+  };
 
   room.onStateChange(() => {
     if (!store.ready) { store.ready = true; store.bump(); return; }
@@ -61,11 +63,13 @@ export async function createTable(name: string) {
   } catch (err) { throw new Error(friendly(err)); }
 }
 
-export async function joinTable(code: string, name: string) {
+/** `spectate`: watch without taking a seat (read-only, doesn't use one of the 8 seats). */
+export async function joinTable(code: string, name: string, spectate = false) {
   const roomId = normalizeCode(code);
   const saved = session.seat();
   try {
-    attach(await client.joinById(roomId, { token: requireToken(), name, reclaimPlayerId: saved?.roomId === roomId ? saved.playerId : undefined }));
+    const reclaimPlayerId = saved?.roomId === roomId && !!saved.spectate === spectate ? saved.playerId : undefined;
+    attach(await client.joinById(roomId, { token: requireToken(), name, reclaimPlayerId, spectate: spectate || undefined }), spectate);
   } catch (err) { throw new Error(friendly(err)); }
 }
 
@@ -80,11 +84,11 @@ async function restore(name: string): Promise<boolean> {
   const saved = session.seat();
   if (!saved) return false;
   try {
-    attach(await client.reconnect(saved.reconnectionToken));
+    attach(await client.reconnect(saved.reconnectionToken), !!saved.spectate);
     return true;
   } catch {
     try {
-      attach(await client.joinById(saved.roomId, { token: requireToken(), name, reclaimPlayerId: saved.playerId }));
+      attach(await client.joinById(saved.roomId, { token: requireToken(), name, reclaimPlayerId: saved.playerId, spectate: saved.spectate || undefined }), !!saved.spectate);
       return true;
     } catch {
       session.clearSeat();

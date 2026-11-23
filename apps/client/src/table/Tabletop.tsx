@@ -7,7 +7,8 @@ function AnimationClock() {
   useFrame(() => tickAnimatedTextures());
   return null;
 }
-import { SEAT_COLORS } from '@kitforge/shared-types';
+import { seatColor } from '@kitforge/shared-types';
+import { PointerLayer } from './PointerLayer.tsx';
 import { useTable } from '../net/tableStore.ts';
 import { CameraRig } from './CameraRig.tsx';
 import { Marker3D } from './Marker3D.tsx';
@@ -25,9 +26,8 @@ export function Tabletop() {
   const u = useUi();
   const state = t.state;
   if (!state) return null;
-  const me = t.me();
   const players = [...state.players.values()];
-  const seatColor = new Map(players.map(p => [p.id, SEAT_COLORS[p.seat % SEAT_COLORS.length] ?? '#ccc']));
+  const colorOf = new Map(players.map(p => [p.id, seatColor(p.seat)]));
   const pieces = [...state.pieces.values()].sort((a, b) => a.order - b.order);
   // How high a piece rests is its depth *within its own stack* — the pieces sharing its spot and
   // kind. Using the global draw order here (as this used to) meant every piece floated a little
@@ -46,7 +46,7 @@ export function Tabletop() {
       previous = c;
     }
   }
-  const lockColor = (lockedBy: string) => (lockedBy && lockedBy !== t.playerId ? seatColor.get(lockedBy) ?? '#fff' : null);
+  const lockColor = (lockedBy: string) => (lockedBy && lockedBy !== t.playerId ? colorOf.get(lockedBy) ?? '#fff' : null);
 
   return (
     <Canvas
@@ -72,7 +72,9 @@ export function Tabletop() {
       <AnimationClock />
       <Backdrop3D json={state.lookBackdrop} />
       <Atmosphere3D json={state.lookAtmosphere} />
-      <CameraRig seat={me?.seat ?? 0} />
+      {/* Spectators hold no seat (-1); they watch from seat 0. */}
+      <CameraRig seat={t.viewSeat()} />
+      <PointerLayer players={players.map(p => ({ id: p.id, color: colorOf.get(p.id) ?? '#fff' }))} />
       <ambientLight intensity={0.95} />
       <directionalLight position={[6, 18, 8]} intensity={1.6} castShadow shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-20} shadow-camera-right={20} shadow-camera-top={15} shadow-camera-bottom={-15} />

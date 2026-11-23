@@ -48,7 +48,7 @@ export const Note3D = memo(function Note3D(p: { id: string; text: string; author
     beginDrag(e, [{ id: p.id, x: n.x, z: n.z }]);
   };
 
-  const yaw = THREE.MathUtils.degToRad(seatAngle(store.me()?.seat ?? 0));
+  const yaw = THREE.MathUtils.degToRad(seatAngle(store.viewSeat()));
 
   return (
     <group ref={group} rotation-y={yaw}>

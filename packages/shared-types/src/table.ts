@@ -2,6 +2,10 @@
 // 1 world unit = 1 inch, so a piece's synced w/h match its Kit Forge size directly.
 
 export const MAX_PLAYERS = 8;
+/** People who can watch a table without taking one of its seats (an instructor, a visitor). */
+export const MAX_SPECTATORS = 8;
+/** Longest list of banned names a table keeps. */
+export const MAX_BANS = 50;
 /** Point counter columns (SCORE, HP, GOLD…) every player gets. */
 export const MAX_COUNTERS = 6;
 export const ROOM_NAME = 'kit_table';
@@ -13,6 +17,12 @@ export const TABLE_HALF_D = TABLE_D / 2;
 export const PIECE_THICKNESS = 0.08;
 
 export const SEAT_COLORS = ['#e0533d', '#3d8ee0', '#3dbf6b', '#e0b23d', '#8e5de0', '#e05dbb', '#4fd1c5', '#f97362'] as const;
+/** Spectators hold no seat (seat -1), so they get a neutral colour instead of a seat's. */
+export const SPECTATOR_COLOR = '#c9ced6';
+/** A seat's colour, safe for spectators (seat -1) and any out-of-range value. */
+export function seatColor(seat: number): string {
+  return seat >= 0 ? SEAT_COLORS[seat % SEAT_COLORS.length] ?? SPECTATOR_COLOR : SPECTATOR_COLOR;
+}
 
 /** Seats are just a facing direction, evenly spaced — there's no per-seat deck/discard/hand
  * here (see PieceKind), so a seat only matters for the camera's "home" view and player color. */

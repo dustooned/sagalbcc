@@ -38,6 +38,8 @@ export const HOTKEYS: { group: string; keys: [string[], string][] }[] = [
     [['N'], 'New note'],
     [['L'], 'Open / close the log'],
     [['H'], 'Hide / show panels'],
+    [['P'], 'Hide / show your pointer to the other players'],
+    [['Alt', 'click'], 'Ping a spot — a pulse everyone sees'],
     [['Home'], 'Reset the camera'],
     [['Space', 'drag'], 'Pan the camera'],
     [['?'], 'This list'],

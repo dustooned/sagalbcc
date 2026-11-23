@@ -11,6 +11,8 @@ export function RoomLobby({ onSessionExpired }: { onSessionExpired: () => void }
   const [code, setCode] = useState(invite);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Join as a spectator: watch (and point) without taking one of the 8 seats.
+  const [watch, setWatch] = useState(false);
 
   async function go(action: 'create' | 'join', e?: FormEvent) {
     e?.preventDefault();
@@ -21,7 +23,7 @@ export function RoomLobby({ onSessionExpired }: { onSessionExpired: () => void }
     setError('');
     try {
       if (action === 'create') await createTable(trimmed);
-      else await joinTable(code, trimmed);
+      else await joinTable(code, trimmed, watch);
     } catch (err) {
       const msg = (err as Error).message;
       if (/password/i.test(msg)) onSessionExpired();
@@ -36,6 +38,13 @@ export function RoomLobby({ onSessionExpired }: { onSessionExpired: () => void }
     </label>
   );
 
+  const watchField = (
+    <label className="check-row" title="Watch the table without taking a seat — handy for an instructor or a visitor. You can point and ping, but not move anything.">
+      <input type="checkbox" checked={watch} onChange={e => setWatch(e.target.checked)} />
+      <span>👁 Watch without taking a seat</span>
+    </label>
+  );
+
   if (invite) {
     return (
       <main className="screen center">
@@ -43,7 +52,8 @@ export function RoomLobby({ onSessionExpired }: { onSessionExpired: () => void }
           <h1 className="logo">SAGA</h1>
           <p className="invited">You're invited to <b>{invite}</b></p>
           {nameField}
-          <button className="btn primary big" disabled={busy}>{busy ? 'JOINING…' : 'JOIN THE TABLE'}</button>
+          {watchField}
+          <button className="btn primary big" disabled={busy}>{busy ? 'JOINING…' : watch ? 'WATCH THE TABLE' : 'JOIN THE TABLE'}</button>
           {error && <p className="error">{error}</p>}
           <button type="button" className="btn ghost small" onClick={() => { history.replaceState(null, '', location.pathname); location.reload(); }}>Start my own table instead</button>
         </form>
@@ -68,8 +78,9 @@ export function RoomLobby({ onSessionExpired }: { onSessionExpired: () => void }
             <span>RUNE</span>
             <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="SAGA-82K" maxLength={12} />
           </label>
-          <button className="btn" disabled={busy || !code.trim()}>JOIN TABLE</button>
+          <button className="btn" disabled={busy || !code.trim()}>{watch ? 'WATCH' : 'JOIN TABLE'}</button>
         </form>
+        {watchField}
         {error && <p className="error">{error}</p>}
         <p className="muted small center-text">After you create a table, use 🔗 Invite to send your party the link.</p>
       </div>

@@ -64,6 +64,20 @@ moment. Uploaded images go through a pluggable `AssetStorage` interface
 `SAVES_DIR` on a persistent disk — on Railway, attaching a volume sets both automatically — or
 accept losing them on redeploy.
 
+## Seats, spectators and moderation
+
+A table has **8 seats** (`MAX_PLAYERS`). On top of that, up to **8 spectators**
+(`MAX_SPECTATORS`, both in `packages/shared-types/src/table.ts`) can join with
+**👁 Watch without taking a seat**. They see everything and can point and ping, but the room
+refuses every other message they send. That makes a full table watchable by an instructor. A
+room accepts `MAX_PLAYERS * 2 + MAX_SPECTATORS` connections; the extra seat-sized headroom covers
+ghost sessions while someone reconnects.
+
+The host can make seated players **co-hosts** (kick, ban, clear the table). Bans are by name and
+easily dodged with a different name — a classroom convenience behind `TABLE_PASSWORD`, not a
+security boundary. Co-hosts and bans are session state: no undo reverts them and save files don't
+contain them.
+
 ## Project layout
 
 Mirrors the pattern in `packages/kit-adapter` and `apps/server/src/table/tableOps.ts`:

@@ -2,7 +2,7 @@
 // membership and piece locks — never any particular game's rules.
 import { randomBytes, randomInt } from 'node:crypto';
 import { Room, ServerError, type Client, type Delayed } from '@colyseus/core';
-import { MAX_PLAYERS } from '@kitforge/shared-types';
+import { MAX_PLAYERS, MAX_SPECTATORS } from '@kitforge/shared-types';
 import { verifyToken } from '../auth.ts';
 import { services } from '../services.ts';
 import { ASSET_ID } from '../storage/AssetStorage.ts';
@@ -17,8 +17,17 @@ export const RECONNECT_SECONDS = 120;
 
 type Handler = (playerId: string, msg: any, client: Client) => ops.OpResult | void | Promise<ops.OpResult | void>;
 
+/** The only messages a spectator may send. Everything else is refused in one place — the
+ *  dispatcher in `on()` — rather than by permission checks scattered through the ops. */
+const SPECTATOR_MESSAGES = new Set(['ping', 'point', 'pointerPing']);
+const SPECTATOR_NOTICE = 'You are watching this table. Spectators can point and ping, but not change anything.';
+/** A spectator dragging a piece fires many refused messages; one notice per this many ms is enough. */
+const SPECTATOR_NOTICE_MS = 2000;
+
 export class TableRoom extends Room<{ state: TableState }> {
-  maxClients = MAX_PLAYERS * 2;
+  // Seats plus headroom for ghost sessions during reconnects, plus the spectator gallery.
+  maxClients = MAX_PLAYERS * 2 + MAX_SPECTATORS;
+  private spectatorNoticeAt = new Map<string, number>();
   ctx!: ops.TableContext;
   private sessions = new Map<string, string>(); // sessionId -> playerId
   private buckets = new Map<string, { tokens: number; at: number }>();
@@ -47,14 +56,17 @@ export class TableRoom extends Room<{ state: TableState }> {
   }
 
   onJoin(client: Client, options: any) {
-    const res = ops.addPlayer(this.ctx, { name: options?.name, reclaimPlayerId: options?.reclaimPlayerId, newId: `p_${randomBytes(6).toString('hex')}` });
+    const res = ops.addPlayer(this.ctx, {
+      name: options?.name, reclaimPlayerId: options?.reclaimPlayerId, spectate: options?.spectate === true,
+      newId: `p_${randomBytes(6).toString('hex')}`,
+    });
     if (!res.player) throw new ServerError(409, res.error ?? 'Could not join.');
     for (const [sid, pid] of this.sessions) if (pid === res.player.id) this.sessions.delete(sid);
     this.sessions.set(client.sessionId, res.player.id);
     client.send('welcome', { playerId: res.player.id, roomCode: this.roomId });
     // Only the player who opens a fresh table is offered the leftover autosave — after that the
-    // table is in use and re-offering would be noise.
-    if (this.resume && this.ctx.state.players.size === 1) client.send('resumable', this.resume.summary);
+    // table is in use and re-offering would be noise. A spectator couldn't restore it anyway.
+    if (this.resume && this.ctx.state.players.size === 1 && !res.player.spectator) client.send('resumable', this.resume.summary);
     this.checkEmpty();
   }
 
@@ -66,7 +78,8 @@ export class TableRoom extends Room<{ state: TableState }> {
 
   onReconnect(client: Client) {
     const pid = this.sessions.get(client.sessionId);
-    if (!pid || !this.ctx.state.players.has(pid)) return;
+    // Kicked or banned while the connection was down: don't leave a seatless socket attached.
+    if (!pid || !this.ctx.state.players.has(pid)) { client.leave(4000); return; }
     ops.setConnected(this.ctx, pid, true);
     client.send('welcome', { playerId: pid, roomCode: this.roomId });
     this.checkEmpty();
@@ -76,8 +89,10 @@ export class TableRoom extends Room<{ state: TableState }> {
     const pid = this.sessions.get(client.sessionId);
     this.sessions.delete(client.sessionId);
     this.buckets.delete(client.sessionId);
+    this.spectatorNoticeAt.delete(client.sessionId);
     if (!pid) return;
     ops.setConnected(this.ctx, pid, false);
+    ops.dropSpectator(this.ctx, pid);
     ops.reassignHost(this.ctx);
     this.checkEmpty();
     // Last one out: write now, so the save is current even if the room sits empty for a while.
@@ -137,7 +152,17 @@ export class TableRoom extends Room<{ state: TableState }> {
   private on(type: string, handler: Handler) {
     this.onMessage(type, async (client: Client, msg: unknown) => {
       const pid = this.sessions.get(client.sessionId);
-      if (!pid || !this.ctx.state.players.has(pid) || !this.allow(client.sessionId)) return;
+      const player = pid ? this.ctx.state.players.get(pid) : undefined;
+      if (!pid || !player || !this.allow(client.sessionId)) return;
+      // The one permission gate for spectators: read-only except presence and latency.
+      if (player.spectator && !SPECTATOR_MESSAGES.has(type)) {
+        const now = Date.now();
+        if (now - (this.spectatorNoticeAt.get(client.sessionId) ?? 0) >= SPECTATOR_NOTICE_MS) {
+          this.spectatorNoticeAt.set(client.sessionId, now);
+          client.send('notice', { text: SPECTATOR_NOTICE });
+        }
+        return;
+      }
       try {
         const res = await handler(pid, typeof msg === 'object' && msg !== null ? msg : {}, client);
         if (res?.notice) client.send('notice', { text: res.notice });
@@ -208,6 +233,9 @@ export class TableRoom extends Room<{ state: TableState }> {
       return ops.undoable(c, () => ops.setTableLook(c, pid, m));
     });
     this.on('ping', (_pid, m, client) => { client.send('pong', { t: typeof m.t === 'number' ? m.t : 0 }); });
+    // Presence: high-frequency, not table state — never undoable, never logged, no notices.
+    this.on('point', (pid, m) => { ops.setPointer(c, pid, m.x, m.z); });
+    this.on('pointerPing', (pid, m) => { ops.pingPointer(c, pid, m.x, m.z); });
 
     this.on('loadKit', (pid, m) => {
       const kit = sanitizeKit(m.kit);
@@ -216,17 +244,30 @@ export class TableRoom extends Room<{ state: TableState }> {
       return ops.undoable(c, () => ops.loadKit(c, pid, kit, defs as NonNullable<ReturnType<typeof sanitizeDefinition>>[]));
     });
 
+    // Permission changes (kick, ban, unban, promote) are session state, not table state: none of
+    // them is wrapped in `undoable`, so no Ctrl+Z can bring a removed player back or undo a ban.
     this.on('kick', (pid, m) => {
       const res = ops.kick(c, pid, m.playerId);
-      if (!res.ok) return res;
-      for (const [sid, target] of this.sessions) {
-        if (target !== m.playerId) continue;
-        this.sessions.delete(sid);
-        const kicked = this.clients.getById(sid);
-        kicked?.send('kicked', { text: 'The host removed you from this table.' });
-        kicked?.leave(4000);
-      }
+      if (res.ok) this.evict(m.playerId, 'You were removed from this table.');
       return res;
     });
+    this.on('ban', (pid, m) => {
+      const res = ops.ban(c, pid, m.playerId);
+      if (res.ok) this.evict(m.playerId, 'You were removed from this table and can’t rejoin under that name.');
+      return res;
+    });
+    this.on('unban', (pid, m) => ops.unban(c, pid, m.name));
+    this.on('promote', (pid, m) => ops.promote(c, pid, m.playerId, m.promoted));
+  }
+
+  /** Disconnects every session belonging to a player the ops just removed. */
+  private evict(playerId: unknown, text: string) {
+    for (const [sid, target] of this.sessions) {
+      if (target !== playerId) continue;
+      this.sessions.delete(sid);
+      const gone = this.clients.getById(sid);
+      gone?.send('kicked', { text });
+      gone?.leave(4000);
+    }
   }
 }

@@ -2,7 +2,7 @@
 // testers. The tester token lives in localStorage, so the password is asked once per browser until
 // the token expires. The password itself is never stored — only the server's expiring token.
 
-export interface SavedSeat { roomId: string; reconnectionToken: string; playerId: string }
+export interface SavedSeat { roomId: string; reconnectionToken: string; playerId: string; /** Was watching, not seated. */ spectate?: boolean }
 
 const read = <T,>(store: Storage, key: string): T | null => {
   try { return JSON.parse(store.getItem(key) ?? 'null') as T | null; } catch { return null; }

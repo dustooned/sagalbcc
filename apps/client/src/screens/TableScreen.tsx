@@ -17,6 +17,7 @@ import { Resumable } from '../hud/Resumable.tsx';
 import { RoomPanel } from '../hud/RoomPanel.tsx';
 import { TableLookPanel } from '../hud/TableLookPanel.tsx';
 import { Toolbar } from '../hud/Toolbar.tsx';
+import { presence } from '../table/presence.ts';
 import { ui, useUi } from '../table/selection.ts';
 import { Tabletop } from '../table/Tabletop.tsx';
 
@@ -53,6 +54,7 @@ function useTableKeys(toggleHud: () => void) {
         case 'n': { const text = prompt('Note for the table:'); if (text?.trim()) actions.addNote(text); break; }
         case 'l': window.dispatchEvent(new Event('saga:toggle-log')); break;
         case 'h': toggleHud(); break;
+        case 'p': presence.toggle(); break;
         case 'q': if (e.shiftKey) actions.turnLeft(ids); else actions.rotateLeft(ids); break;
         case 'e': if (e.shiftKey) actions.turnRight(ids); else actions.rotateRight(ids); break;
         case '=': case '+': actions.bigger(ids); break;

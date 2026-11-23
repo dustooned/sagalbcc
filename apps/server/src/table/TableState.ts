@@ -33,10 +33,25 @@ export type PieceState = SchemaType<typeof PieceState>;
 export const PlayerState = schema({
   id: t.string().default(''),
   name: t.string().default(''),
+  /** 0..MAX_PLAYERS-1 for a seated player; -1 for a spectator (who holds no seat). */
   seat: t.int8().default(0),
   connected: t.boolean().default(true),
   /** Point counters (TTS-style), keyed by the table's counterNames. */
   counters: t.map('number'),
+  /** Presence: where this player is pointing on the felt. `pointerAt` is a server-stamped tick
+   *  (ms, wrapped to uint32) that changes on every update — clients watch it change rather than
+   *  compare it to their own clock. 0 = pointer hidden. */
+  pointerX: t.float32().default(0),
+  pointerZ: t.float32().default(0),
+  pointerAt: t.uint32().default(0),
+  /** A one-off "look here" pulse at (pingX, pingZ); `pingAt` changes on every ping. 0 = never. */
+  pingX: t.float32().default(0),
+  pingZ: t.float32().default(0),
+  pingAt: t.uint32().default(0),
+  /** Watching without a seat: read-only, never host, doesn't count toward the 8 seats. */
+  spectator: t.boolean().default(false),
+  /** Co-host: may kick, ban and clear the table alongside the host. Session state — never undone. */
+  promoted: t.boolean().default(false),
 }, 'Player');
 export type PlayerState = SchemaType<typeof PlayerState>;
 
@@ -94,5 +109,8 @@ export const TableState = schema({
    *  These are a view of the server's history stack, not part of the snapshot it stores. */
   undoCount: t.uint8().default(0),
   redoCount: t.uint8().default(0),
+  /** Lowercased names the host or a co-host banned. Session state: deliberately left out of undo
+   *  snapshots and save files, so neither an undo nor a loaded table can let a banned name back in. */
+  bans: t.array('string'),
 }, 'TableState');
 export type TableState = SchemaType<typeof TableState>;

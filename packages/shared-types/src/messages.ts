@@ -56,8 +56,20 @@ export interface ClientMessages {
   resetTable: Record<string, never>;
   /** Shared table surface: felt color and/or an uploaded /uploads/... image ('' removes it). */
   setTableLook: { felt?: string; image?: string; backdrop?: import('./table.ts').Backdrop; atmosphere?: import('./table.ts').Atmosphere };
+  /** Host or co-host: remove a player (they may rejoin). */
   kick: { playerId: string };
+  /** Host or co-host: remove a player and ban their name from rejoining this table. */
+  ban: { playerId: string };
+  unban: { name: string };
+  /** Host only: make a seated player a co-host (may kick, ban and clear), or undo that. */
+  promote: { playerId: string; promoted: boolean };
+  /** Latency probe — not to be confused with `pointerPing`. */
   ping: { t: number };
+  /** Presence: where you're pointing on the felt. Omit both coordinates to hide your pointer.
+   *  High-frequency and not part of the table: never undoable, never logged. */
+  point: { x?: number; z?: number };
+  /** A one-off pulse at a spot ("look here"). Not undoable, not logged. */
+  pointerPing: { x: number; z: number };
 }
 
 export interface ServerMessages {
@@ -84,6 +96,8 @@ export interface JoinOptions {
   name: string;
   /** Lets a player take back their own disconnected seat after a refresh. */
   reclaimPlayerId?: string;
+  /** Watch without taking a seat: read-only, and doesn't use up one of the table's seats. */
+  spectate?: boolean;
 }
 
 /** HTTP API shapes. */

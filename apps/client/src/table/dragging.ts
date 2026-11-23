@@ -96,6 +96,8 @@ const TWIST_STEP = Math.PI / 3;
 
 export function beginDrag(start: { clientX: number; clientY: number; pointerId?: number }, list: DragItem[], opts: DragOptions = {}) {
   const { onClick, onRoll, onTwist, onSnap, throwable = !!onRoll } = opts;
+  // Spectators: the server refuses every move anyway; don't lift the piece only to drop it back.
+  if (store.isSpectator()) { store.notify('You are watching this table. Spectators can point and ping, but not change anything.'); return; }
   // One hold at a time: a second finger landing on the same piece must not start a nested drag.
   // (A glide isn't a hold — you can grab the next die while the last one is still sliding.)
   if (holdingNow) return;

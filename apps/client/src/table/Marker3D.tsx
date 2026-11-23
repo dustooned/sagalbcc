@@ -181,7 +181,7 @@ export const Marker3D = memo(function Marker3D(p: Marker3DProps) {
     beginDrag(e, [{ id: p.id, ...pos }], { onClick: roll, onRoll: roll, throwable: true });
   };
 
-  const yaw = THREE.MathUtils.degToRad(seatAngle(store.me()?.seat ?? 0) + 90);
+  const yaw = THREE.MathUtils.degToRad(seatAngle(store.viewSeat()) + 90);
 
   const mesh = (
     <mesh

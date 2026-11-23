@@ -55,6 +55,12 @@ class TableStore {
     try { return JSON.parse(p.face) as PieceFace; } catch { return null; }
   }
   isHost() { return !!this.playerId && this.state?.hostId === this.playerId; }
+  /** Host or co-host: may kick, ban and clear the table. */
+  isStaff() { return this.isHost() || this.me()?.promoted === true; }
+  /** Watching without a seat — the server refuses everything but pointing and pinging. */
+  isSpectator() { return this.me()?.spectator === true; }
+  /** The seat to look from. Spectators have none (-1), so they get seat 0's view. */
+  viewSeat() { return Math.max(0, this.me()?.seat ?? 0); }
 
   send<K extends keyof ClientMessages>(type: K, payload: ClientMessages[K]) {
     this.room?.send(type as string, payload);

@@ -13,14 +13,17 @@ export function Toolbar() {
   const t = useTable();
   // Starts collapsed on small screens so it doesn't cover the table.
   const [open, setOpen] = useState(() => window.innerWidth > 700);
-  const host = t.isHost();
+  const staff = t.isStaff();
+  // Spectators are read-only: the whole tool body is one disabled fieldset (links still work).
+  const watching = t.isSpectator();
   const grid = t.state?.gridSize ?? 0;
 
   return (
     <section className={`hud-panel tools ${open ? 'open' : ''}`}>
       <button className="tools-head" onClick={() => setOpen(o => !o)}>🧰<span className="head-label"> TABLE TOOLS</span> <span>{open ? '▾' : '▸'}</span></button>
       {open && (
-        <div className="tools-body">
+        <fieldset className="tools-body plain" disabled={watching} title={watching ? 'You are watching — spectators can’t change the table' : undefined}>
+          {watching && <p className="muted small">👁 You are watching this table. You can point and ping (Alt+click), but not change anything.</p>}
           <div className="row wrap">
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickKitFile}>{t.kitProgress ?? '📦 Load kit…'}</button>
             <button className="btn small" disabled={!!t.kitProgress} onClick={pickImageFile}>🖼️ Add image…</button>
@@ -59,9 +62,9 @@ export function Toolbar() {
             ))}
           </div>
           <div className="row wrap">
-            <button className="btn small danger" disabled={!host} title={host ? '' : 'Host only'} onClick={() => { if (confirm('Clear every piece, marker and note off the table?')) t.send('resetTable', {}); }}>Clear table</button>
+            <button className="btn small danger" disabled={!staff} title={staff ? '' : 'Host or co-host only'} onClick={() => { if (confirm('Clear every piece, marker and note off the table?')) t.send('resetTable', {}); }}>Clear table</button>
           </div>
-        </div>
+        </fieldset>
       )}
     </section>
   );

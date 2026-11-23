@@ -63,4 +63,16 @@ export const actions = {
   renameCounter: (from: string, to: string) => store.send('renameCounter', { from, to }),
   removeCounter: (name: string) => store.send('removeCounter', { name }),
   addNote: (text: string) => store.send('addNote', { text }),
+  // ------------------------------------------------ people (host / co-host)
+  kick: (playerId: string) => store.send('kick', { playerId }),
+  /** Remove and ban by name. A name ban is easy to dodge — it's a classroom convenience. */
+  ban: (playerId: string) => store.send('ban', { playerId }),
+  unban: (name: string) => store.send('unban', { name }),
+  /** Host only: make someone a co-host (or take it back). */
+  promote: (playerId: string, promoted: boolean) => store.send('promote', { playerId, promoted }),
+  // ------------------------------------------------ presence
+  /** Your pointer on the felt; call with no point to hide it. */
+  point: (at?: { x: number; z: number }) => store.send('point', at ? { x: at.x, z: at.z } : {}),
+  /** A one-off "look here" pulse everyone sees. */
+  pingAt: (at: { x: number; z: number }) => store.send('pointerPing', { x: at.x, z: at.z }),
 };
